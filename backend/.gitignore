@@ -1,0 +1,22 @@
+# Node modules
+node_modules/
+
+# Fichiers de logs
+*.log
+
+# Fichiers temporaires
+npm-debug.log*
+
+# Fichiers d'environnement
+.env
+
+# Cache de dépendances
+package-lock.json
+
+# IDEs & éditeurs de texte
+.vscode/
+.idea/
+
+# Système d'exploitation
+.DS_Store
+Thumbs.db
