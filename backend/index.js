@@ -40,13 +40,14 @@ const upload = multer({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Chemin du fichier JSON où les données seront sauvegardées
-const dataFilePath = path.join(__dirname, 'data', 'pictures.json');
+// Chemin du fichier JSON où les données des images seront sauvegardées
+const picturesDataFilePath = path.join(__dirname, 'data', 'pictures.json');
+const screensDataFilePath = path.join(__dirname, 'data', 'screens.json');
 
 // Fonction pour lire les données existantes dans le fichier JSON
-const readDataFromFile = () => {
+const readDataFromFile = (filePath) => {
   try {
-    const rawData = fs.readFileSync(dataFilePath, 'utf-8');
+    const rawData = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(rawData);
   } catch (error) {
     return [];  // Si le fichier n'existe pas ou est vide, retourner un tableau vide
@@ -54,42 +55,35 @@ const readDataFromFile = () => {
 };
 
 // Fonction pour écrire les données dans le fichier JSON
-const writeDataToFile = (data) => {
+const writeDataToFile = (filePath, data) => {
   try {
-    fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (error) {
     console.error('Error writing to file:', error);
   }
 };
 
-// Route pour récupérer les données des images (GET)
+// Routes pour les images
 app.get('/pictures', (req, res) => {
   try {
-    const data = readDataFromFile();
+    const data = readDataFromFile(picturesDataFilePath);
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
 });
 
-// Route pour enregistrer les données
 app.post('/upload', upload.single('image'), (req, res) => {
   try {
-    // Vérifier si l'image est reçue
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Extraire les autres données du formulaire
     const { delay, startDate, endDate, backgroundColor } = req.body;
+    const id = new Date().toISOString();
 
-    // Générer un ID unique basé sur la date et l'heure
-    const id = new Date().toISOString(); // Utiliser un timestamp ISO comme ID unique
-    console.log("Generated ID:", id); // Log pour vérifier l'ID généré
-
-    // Sauvegarder les informations dans un objet
     const imageData = {
-      id, // Ajouter l'ID unique
+      id,
       imagePath: `/uploads/${req.file.filename}`,
       delay,
       startDate,
@@ -97,48 +91,88 @@ app.post('/upload', upload.single('image'), (req, res) => {
       backgroundColor,
     };
 
-    // Lire les données existantes dans le fichier JSON
-    const currentData = readDataFromFile();
-
-    // Ajouter les nouvelles données à la liste existante
+    const currentData = readDataFromFile(picturesDataFilePath);
     currentData.push(imageData);
+    writeDataToFile(picturesDataFilePath, currentData);
 
-    // Sauvegarder les nouvelles données dans le fichier JSON
-    writeDataToFile(currentData);
-
-    // Répondre avec les données enregistrées
     res.status(200).json({ message: 'File uploaded successfully', data: imageData });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
 });
 
-// Route pour supprimer une image
 app.delete('/pictures/:id', (req, res) => {
   const { id } = req.params;
 
   try {
-    // Lire les données existantes dans le fichier JSON
-    let currentData = readDataFromFile();
-
-    // Trouver l'image à supprimer
+    let currentData = readDataFromFile(picturesDataFilePath);
     const pictureToDelete = currentData.find(picture => picture.id === id);
 
     if (!pictureToDelete) {
       return res.status(404).json({ message: 'Picture not found' });
     }
 
-    // Supprimer le fichier image du dossier uploads
     const filePath = path.join(uploadFolder, pictureToDelete.imagePath.split('/').pop());
-    fs.unlinkSync(filePath); // Supprimer le fichier
+    fs.unlinkSync(filePath);
 
-    // Filtrer les données pour supprimer l'image avec l'ID correspondant
     currentData = currentData.filter(picture => picture.id !== id);
-
-    // Sauvegarder les nouvelles données dans le fichier JSON
-    writeDataToFile(currentData);
+    writeDataToFile(picturesDataFilePath, currentData);
 
     res.status(200).json({ message: 'Picture deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+// Routes pour les écrans
+app.get('/screens', (req, res) => {
+  try {
+    const data = readDataFromFile(screensDataFilePath);
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+app.post('/screens', (req, res) => {
+  try {
+    const { name, group, status, lsimg = [] } = req.body;  // Ajout du paramètre lsimg avec valeur par défaut []
+    const id = new Date().toISOString();
+
+    const screenData = {
+      id,
+      name,
+      group,
+      status,
+      lsimg,  // Ajout de la propriété lsimg
+    };
+
+    const currentData = readDataFromFile(screensDataFilePath);
+    currentData.push(screenData);
+    writeDataToFile(screensDataFilePath, currentData);
+
+    res.status(200).json({ message: 'Screen added successfully', data: screenData });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+
+app.delete('/screens/:id', (req, res) => {
+  const { id } = req.params;
+
+  try {
+    let currentData = readDataFromFile(screensDataFilePath);
+    const screenToDelete = currentData.find(screen => screen.id === id);
+
+    if (!screenToDelete) {
+      return res.status(404).json({ message: 'Screen not found' });
+    }
+
+    currentData = currentData.filter(screen => screen.id !== id);
+    writeDataToFile(screensDataFilePath, currentData);
+
+    res.status(200).json({ message: 'Screen deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }

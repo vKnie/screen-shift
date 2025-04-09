@@ -1,7 +1,7 @@
 // components/Sidebar.tsx
 
 import Link from 'next/link';
-import { HomeIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, PhotoIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
   return (
@@ -16,7 +16,7 @@ const Sidebar = () => {
       <nav className="flex flex-col py-4 px-4">
         <ul>
           <li>
-            <Link href="/dashboard" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
+            <Link href="/" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
               <HomeIcon className="h-5 w-5 text-gray-700 mr-2" />
               Dashboard
             </Link>
@@ -25,6 +25,18 @@ const Sidebar = () => {
             <Link href="/pictures" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
               <PhotoIcon className="h-5 w-5 text-gray-700 mr-2" />
               Pictures
+            </Link>
+          </li>
+          <li>
+            <Link href="/screens" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
+              <ComputerDesktopIcon className="h-5 w-5 text-gray-700 mr-2" />
+              Screens
+            </Link>
+          </li>
+          <li>
+            <Link href="/configuration" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
+              <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-700 mr-2" />
+              Configuration
             </Link>
           </li>
         </ul>
