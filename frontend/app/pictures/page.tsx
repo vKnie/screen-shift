@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react'; // Ajout de useCallback
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 
 interface Picture {
-  id: number;
+  id: string; // Assurez-vous que l'ID est une chaîne de caractères
   imagePath: string;
   status: string;
   delay: number;
@@ -21,7 +21,7 @@ interface FormData {
   backgroundColor: string;
 }
 
-const API_URL = 'http://localhost:9999'; // Base API URL
+const API_URL = 'http://localhost:9999';
 
 export default function Pictures() {
   const [formData, setFormData] = useState<FormData>({
@@ -33,17 +33,10 @@ export default function Pictures() {
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pictures, setPictures] = useState<Picture[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const imageInputRef = useRef<HTMLInputElement | null>(null); // Référence pour l'input file
 
-  const isMounted = useRef(true); // Utilisation de useRef pour suivre l'état du montage du composant
-
-  // Fonction pour récupérer les images
   const fetchPictures = useCallback(async () => {
-    setLoading(true);
-    setError(null); // Réinitialiser l'erreur à chaque appel
+    setError(null);
     try {
       const response = await fetch(`${API_URL}/pictures`);
       if (!response.ok) {
@@ -56,11 +49,7 @@ export default function Pictures() {
       }
 
       const data = await response.json();
-
-      // Si le composant est encore monté, on met à jour l'état
-      if (isMounted.current) {
-        setPictures(data);
-      }
+      setPictures(data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error("Error fetching pictures:", error.message);
@@ -69,26 +58,15 @@ export default function Pictures() {
         console.error("An unknown error occurred", error);
         setError("An unknown error occurred. Please try again later.");
       }
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
     }
   }, []);
 
   useEffect(() => {
     fetchPictures();
-
-    return () => {
-      isMounted.current = false;
-    };
   }, [fetchPictures]);
 
-  // Fonction pour gérer les changements dans les champs du formulaire
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, files } = e.target;
-    
-    // Si l'input est de type 'file', on utilise le premier fichier sélectionné
     setFormData((prevData) => ({
       ...prevData,
       [name]: type === 'file' && files ? files[0] : value,
@@ -100,7 +78,7 @@ export default function Pictures() {
 
     if (!formData.image || !formData.backgroundColor) {
       alert('Please select an image and a background color');
-      return; // Ajouter une validation de formulaire avant l'envoi
+      return;
     }
 
     const formDataToSend = new FormData();
@@ -131,6 +109,26 @@ export default function Pictures() {
   };
 
   const toggleModal = () => setIsModalOpen(!isModalOpen);
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/pictures/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      fetchPictures(); // Recharger les images après la suppression
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error deleting picture:', error.message);
+        setError("Failed to delete picture. Please try again later.");
+      } else {
+        console.error('An unknown error occurred', error);
+        setError("An unknown error occurred. Please try again later.");
+      }
+    }
+  };
 
   const formFields = [
     { label: 'Choose Image', type: 'file', name: 'image', accept: 'image/*' },
@@ -163,22 +161,19 @@ export default function Pictures() {
               <div className="absolute inset-0 backdrop-blur-md z-10"></div>
               <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg z-20">
                 <h3 className="text-xl font-semibold mb-4">Add a New Picture</h3>
-
                 <form onSubmit={handleSubmit}>
-                  {formFields.map(({ label, type, name, accept }, index) => (
-                    <div key={index} className="mb-4">
+                  {formFields.map(({ label, type, name, accept }) => (
+                    <div key={name} className="mb-4">
                       <label className="block text-gray-700">{label}:</label>
                       <input
                         type={type}
                         name={name}
                         accept={accept}
                         onChange={handleChange}
-                        ref={name === 'image' ? imageInputRef : null}
                         className="mt-1 p-2 border border-gray-300 rounded-md"
                       />
                     </div>
                   ))}
-
                   <div className="flex justify-between space-x-2">
                     <button type="submit" className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 cursor-pointer">
                       Save
@@ -213,13 +208,13 @@ export default function Pictures() {
                 </tr>
               </thead>
               <tbody className="text-gray-700">
-                {loading ? (
+                {pictures.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-4">Loading...</td>
+                    <td colSpan={8} className="text-center py-4">No pictures available</td>
                   </tr>
                 ) : (
                   pictures.map((picture) => (
-                    <tr key={`${picture.id}-${picture.imagePath}`} className="hover:bg-gray-100 transition-all duration-300">
+                    <tr key={picture.id} className="hover:bg-gray-50 transition-all duration-100">
                       <td className="px-6 py-4">{picture.imagePath}</td>
                       <td className="px-6 py-4">
                         <div className="relative group">
@@ -246,7 +241,10 @@ export default function Pictures() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <button className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 cursor-pointer">
+                        <button
+                          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 cursor-pointer"
+                          onClick={() => handleDelete(picture.id)}
+                        >
                           Delete
                         </button>
                       </td>

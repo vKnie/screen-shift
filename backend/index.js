@@ -83,8 +83,13 @@ app.post('/upload', upload.single('image'), (req, res) => {
     // Extraire les autres données du formulaire
     const { delay, startDate, endDate, backgroundColor } = req.body;
 
+    // Générer un ID unique basé sur la date et l'heure
+    const id = new Date().toISOString(); // Utiliser un timestamp ISO comme ID unique
+    console.log("Generated ID:", id); // Log pour vérifier l'ID généré
+
     // Sauvegarder les informations dans un objet
     const imageData = {
+      id, // Ajouter l'ID unique
       imagePath: `/uploads/${req.file.filename}`,
       delay,
       startDate,
@@ -103,6 +108,37 @@ app.post('/upload', upload.single('image'), (req, res) => {
 
     // Répondre avec les données enregistrées
     res.status(200).json({ message: 'File uploaded successfully', data: imageData });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+// Route pour supprimer une image
+app.delete('/pictures/:id', (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Lire les données existantes dans le fichier JSON
+    let currentData = readDataFromFile();
+
+    // Trouver l'image à supprimer
+    const pictureToDelete = currentData.find(picture => picture.id === id);
+
+    if (!pictureToDelete) {
+      return res.status(404).json({ message: 'Picture not found' });
+    }
+
+    // Supprimer le fichier image du dossier uploads
+    const filePath = path.join(uploadFolder, pictureToDelete.imagePath.split('/').pop());
+    fs.unlinkSync(filePath); // Supprimer le fichier
+
+    // Filtrer les données pour supprimer l'image avec l'ID correspondant
+    currentData = currentData.filter(picture => picture.id !== id);
+
+    // Sauvegarder les nouvelles données dans le fichier JSON
+    writeDataToFile(currentData);
+
+    res.status(200).json({ message: 'Picture deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
