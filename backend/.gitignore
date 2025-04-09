@@ -1,22 +1,19 @@
-# Node modules
-node_modules/
-
-# Fichiers de logs
-*.log
-
-# Fichiers temporaires
-npm-debug.log*
-
-# Fichiers d'environnement
-.env
-
-# Cache de dépendances
+# npm
+node_modules
 package-lock.json
+npm-shrinkwrap.json
+*.log
+*.gz
 
-# IDEs & éditeurs de texte
-.vscode/
-.idea/
+# Coveralls
+.nyc_output
+coverage
 
-# Système d'exploitation
-.DS_Store
-Thumbs.db
+# Benchmarking
+benchmarks/graphs
+
+/uploads/
+/data/
+
+# ignore additional files using core.excludesFile
+# https://git-scm.com/docs/gitignore
