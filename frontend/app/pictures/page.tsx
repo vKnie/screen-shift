@@ -223,7 +223,7 @@ export default function Pictures() {
                             alt="Uploaded"
                             width={100}
                             height={100}
-                            className="w-16 h-16 object-cover transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
+                            className="w-16 rounded-md h-16 object-cover transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
                           />
                         </div>
                       </td>

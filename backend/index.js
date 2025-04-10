@@ -64,6 +64,24 @@ app.get('/pictures', (req, res) => {
   }
 });
 
+app.get('/pictures/:id', (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const data = readDataFromFile(picturesDataFilePath);
+    const picture = data.find(p => p.id === id);
+
+    if (!picture) {
+      return res.status(404).json({ message: 'Picture not found' });
+    }
+
+    res.status(200).json(picture);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+
 app.post('/upload', upload.single('image'), (req, res) => {
   try {
     if (!req.file) {
@@ -96,22 +114,50 @@ app.delete('/pictures/:id', (req, res) => {
   const { id } = req.params;
 
   try {
-    let currentData = readDataFromFile(picturesDataFilePath);
-    const pictureToDelete = currentData.find(picture => picture.id === id);
+    // Lire les données des images
+    let picturesData = readDataFromFile(picturesDataFilePath);
+    const pictureToDelete = picturesData.find(picture => picture.id === id);
 
     if (!pictureToDelete) {
       return res.status(404).json({ message: 'Picture not found' });
     }
 
-    const filePath = path.join(uploadFolder, pictureToDelete.imagePath.split('/').pop());
-    fs.unlinkSync(filePath);
+    // Vérifier si l'image est utilisée dans un écran
+    const screensData = readDataFromFile(screensDataFilePath);
+    const screensUsingPicture = screensData.filter(screen => 
+      screen.lsimg && screen.lsimg.includes(id)
+    );
 
-    currentData = currentData.filter(picture => picture.id !== id);
-    writeDataToFile(picturesDataFilePath, currentData);
+    if (screensUsingPicture.length > 0) {
+      // Si l'image est utilisée, la supprimer de tous les écrans qui l'utilisent
+      for (const screen of screensData) {
+        if (screen.lsimg && screen.lsimg.includes(id)) {
+          screen.lsimg = screen.lsimg.filter(imgId => imgId !== id);
+        }
+      }
+      
+      // Mettre à jour le fichier des écrans
+      writeDataToFile(screensDataFilePath, screensData);
+    }
 
-    res.status(200).json({ message: 'Picture deleted successfully' });
+    // Supprimer le fichier physique
+    const filePath = path.join(__dirname, pictureToDelete.imagePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Supprimer l'image des données
+    picturesData = picturesData.filter(picture => picture.id !== id);
+    writeDataToFile(picturesDataFilePath, picturesData);
+
+    res.status(200).json({ 
+      message: 'Picture deleted successfully', 
+      updatedScreens: screensUsingPicture.length > 0 ? 
+        screensUsingPicture.map(s => s.id) : []
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
+    console.error('Error deleting picture:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -147,7 +193,6 @@ app.post('/screens', (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 });
-
 
 app.delete('/screens/:id', (req, res) => {
   const { id } = req.params;
@@ -194,6 +239,24 @@ app.patch('/screens/:id', (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 });
+
+app.get('/screens/:id', (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const data = readDataFromFile(screensDataFilePath);
+    const screen = data.find(screen => screen.id === id);
+
+    if (!screen) {
+      return res.status(404).json({ message: 'Screen not found' });
+    }
+
+    res.status(200).json(screen);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
 
 // Servir les fichiers statiques (images)
 app.use('/uploads', express.static(uploadFolder));
