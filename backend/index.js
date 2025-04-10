@@ -4,24 +4,20 @@ const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 
-// Créer l'application Express
 const app = express();
 const port = 9999;
 
-// Middleware CORS pour autoriser les appels API du frontend
 app.use(cors());
 
-// Créer un répertoire public pour stocker les images
 const uploadFolder = path.join(__dirname, 'uploads');
 
-// Configurer multer pour enregistrer les images dans le dossier 'uploads'
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadFolder);  // Destination des fichiers
+    cb(null, uploadFolder); 
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname)); // Nom du fichier
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   },
 });
 
@@ -36,25 +32,21 @@ const upload = multer({
   }
 });
 
-// Middleware pour parser le corps de la requête
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Chemin du fichier JSON où les données des images seront sauvegardées
 const picturesDataFilePath = path.join(__dirname, 'data', 'pictures.json');
 const screensDataFilePath = path.join(__dirname, 'data', 'screens.json');
 
-// Fonction pour lire les données existantes dans le fichier JSON
 const readDataFromFile = (filePath) => {
   try {
     const rawData = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(rawData);
   } catch (error) {
-    return [];  // Si le fichier n'existe pas ou est vide, retourner un tableau vide
+    return []; 
   }
 };
 
-// Fonction pour écrire les données dans le fichier JSON
 const writeDataToFile = (filePath, data) => {
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
@@ -63,7 +55,6 @@ const writeDataToFile = (filePath, data) => {
   }
 };
 
-// Routes pour les images
 app.get('/pictures', (req, res) => {
   try {
     const data = readDataFromFile(picturesDataFilePath);
@@ -136,7 +127,7 @@ app.get('/screens', (req, res) => {
 
 app.post('/screens', (req, res) => {
   try {
-    const { name, group, status, lsimg = [] } = req.body;  // Ajout du paramètre lsimg avec valeur par défaut []
+    const { name, group, status, lsimg = [] } = req.body;
     const id = new Date().toISOString();
 
     const screenData = {
@@ -144,7 +135,7 @@ app.post('/screens', (req, res) => {
       name,
       group,
       status,
-      lsimg,  // Ajout de la propriété lsimg
+      lsimg,
     };
 
     const currentData = readDataFromFile(screensDataFilePath);
@@ -173,6 +164,32 @@ app.delete('/screens/:id', (req, res) => {
     writeDataToFile(screensDataFilePath, currentData);
 
     res.status(200).json({ message: 'Screen deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+app.patch('/screens/:id', (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  try {
+    let currentData = readDataFromFile(screensDataFilePath);
+    const screenIndex = currentData.findIndex(screen => screen.id === id);
+
+    if (screenIndex === -1) {
+      return res.status(404).json({ message: 'Screen not found' });
+    }
+
+    // Mettre à jour l'écran avec les nouvelles données
+    currentData[screenIndex] = {
+      ...currentData[screenIndex],
+      ...updates
+    };
+
+    writeDataToFile(screensDataFilePath, currentData);
+
+    res.status(200).json({ message: 'Screen updated successfully', data: currentData[screenIndex] });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }

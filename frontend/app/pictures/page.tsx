@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 
 interface Picture {
-  id: string; // Assurez-vous que l'ID est une chaîne de caractères
+  id: string;
   imagePath: string;
   status: string;
   delay: number;
@@ -118,7 +118,7 @@ export default function Pictures() {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      fetchPictures(); // Recharger les images après la suppression
+      fetchPictures();
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error('Error deleting picture:', error.message);
