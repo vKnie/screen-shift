@@ -1,12 +1,13 @@
-// components/Sidebar.tsx
-
 import Link from 'next/link';
 import { HomeIcon, PhotoIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onLanguageChange: (language: string) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onLanguageChange }) => {
   return (
     <div className="w-64 h-screen bg-white border-r border-gray-200 shadow-md fixed top-0 left-0">
-
       <div className="p-6 border-b border-gray-200">
         <h1 className="text-2xl font-semibold text-center text-gray-800 transition-transform duration-300 hover:scale-105 cursor-pointer">
           Screen Shift
@@ -41,6 +42,18 @@ const Sidebar = () => {
           </li>
         </ul>
       </nav>
+
+      <div className="p-4 border-t border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">Language</h2>
+        <select
+          onChange={(e) => onLanguageChange(e.target.value)}
+          className="p-2 border border-gray-300 rounded-md"
+        >
+          <option value="fr">🇫🇷 Français</option>
+          <option value="en">🇬🇧 English</option>
+          {/* Ajoutez d'autres langues si nécessaire */}
+        </select>
+      </div>
     </div>
   );
 };
