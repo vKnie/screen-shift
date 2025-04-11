@@ -32,6 +32,8 @@ export default function Pictures() {
     backgroundColor: '',
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingPictureId, setEditingPictureId] = useState<string | null>(null);
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,7 +78,7 @@ export default function Pictures() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.image || !formData.backgroundColor) {
+    if (!isEditMode && (!formData.image || !formData.backgroundColor)) {
       alert('Please select an image and a background color');
       return;
     }
@@ -89,18 +91,33 @@ export default function Pictures() {
     formDataToSend.append('backgroundColor', formData.backgroundColor || '');
 
     try {
-      const response = await fetch(`${API_URL}/upload`, {
-        method: 'POST',
-        body: formDataToSend,
-      });
-      const data = await response.json();
-      console.log('Server Response:', data);
+      if (isEditMode && editingPictureId) {
+        // Update existing picture
+        const response = await fetch(`${API_URL}/pictures/${editingPictureId}`, {
+          method: 'PUT',
+          body: formDataToSend,
+        });
+        const data = await response.json();
+        console.log('Server Response (Edit):', data);
+      } else {
+        // Create new picture
+        const response = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          body: formDataToSend,
+        });
+        const data = await response.json();
+        console.log('Server Response (Add):', data);
+      }
+      
       setIsModalOpen(false);
+      setIsEditMode(false);
+      setEditingPictureId(null);
+      resetForm();
       fetchPictures();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        console.error('Error uploading image:', error.message);
-        setError("Failed to upload image. Please try again later.");
+        console.error('Error with picture:', error.message);
+        setError(`Failed to ${isEditMode ? 'update' : 'upload'} image. Please try again later.`);
       } else {
         console.error('An unknown error occurred', error);
         setError("An unknown error occurred. Please try again later.");
@@ -108,7 +125,34 @@ export default function Pictures() {
     }
   };
 
-  const toggleModal = () => setIsModalOpen(!isModalOpen);
+  const resetForm = () => {
+    setFormData({
+      image: null,
+      delay: 0,
+      startDate: '',
+      endDate: '',
+      backgroundColor: '',
+    });
+  };
+
+  const toggleModal = (edit = false, picture?: Picture) => {
+    if (edit && picture) {
+      setIsEditMode(true);
+      setEditingPictureId(picture.id);
+      setFormData({
+        image: null, // Can't pre-fill the file input
+        delay: picture.delay,
+        startDate: picture.startDate,
+        endDate: picture.endDate,
+        backgroundColor: picture.backgroundColor,
+      });
+    } else {
+      setIsEditMode(false);
+      setEditingPictureId(null);
+      resetForm();
+    }
+    setIsModalOpen(!isModalOpen);
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -131,7 +175,7 @@ export default function Pictures() {
   };
 
   const formFields = [
-    { label: 'Choose Image', type: 'file', name: 'image', accept: 'image/*' },
+    ...(isEditMode ? [] : [{ label: 'Choose Image', type: 'file', name: 'image', accept: 'image/*' }]),
     { label: 'Delay (seconds)', type: 'number', name: 'delay' },
     { label: 'Start Date', type: 'date', name: 'startDate' },
     { label: 'End Date', type: 'date', name: 'endDate' },
@@ -146,11 +190,11 @@ export default function Pictures() {
       <hr className="w-full border-t border-gray-300 mt-2" />
 
       <div className="flex justify-center mt-10">
-        <div className="w-full max-w-7xl px-4">
+        <div className="w-full max-w-8xl px-4">
           <div className="mb-4">
             <button
               className="bg-blue-500 text-white px-5 py-2 rounded-md hover:bg-blue-600 cursor-pointer"
-              onClick={toggleModal}
+              onClick={() => toggleModal()}
             >
               Add Picture
             </button>
@@ -160,7 +204,9 @@ export default function Pictures() {
             <div className="fixed inset-0 flex justify-center items-center z-50">
               <div className="absolute inset-0 backdrop-blur-md z-10"></div>
               <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg z-20">
-                <h3 className="text-xl font-semibold mb-4">Add a New Picture</h3>
+                <h3 className="text-xl font-semibold mb-4">
+                  {isEditMode ? 'Edit Picture' : 'Add a New Picture'}
+                </h3>
                 <form onSubmit={handleSubmit}>
                   {formFields.map(({ label, type, name, accept }) => (
                     <div key={name} className="mb-4">
@@ -169,18 +215,19 @@ export default function Pictures() {
                         type={type}
                         name={name}
                         accept={accept}
+                        value={type !== 'file' ? formData[name as keyof FormData] as string : undefined}
                         onChange={handleChange}
-                        className="mt-1 p-2 border border-gray-300 rounded-md"
+                        className="mt-1 p-2 border border-gray-300 rounded-md w-full"
                       />
                     </div>
                   ))}
                   <div className="flex justify-between space-x-2">
                     <button type="submit" className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 cursor-pointer">
-                      Save
+                      {isEditMode ? 'Update' : 'Save'}
                     </button>
                     <button
                       type="button"
-                      onClick={toggleModal}
+                      onClick={() => toggleModal()}
                       className="bg-red-500 text-white px-6 py-2 rounded-md hover:bg-red-600 cursor-pointer"
                     >
                       Cancel
@@ -194,7 +241,7 @@ export default function Pictures() {
           {error && <p className="text-red-500">{error}</p>}
 
           <div className="flex justify-center">
-            <table className="w-full bg-white rounded-lg shadow-md overflow-hidden border-separate border-spacing-0">
+            <table className="w-full shadow-md border-separate border-spacing-0 rounded-lg overflow-hidden shadow-sm border border-gray-200">
               <thead className="bg-gray-100 text-gray-900">
                 <tr>
                   <th className="px-6 py-4 text-left font-semibold">Name</th>
@@ -204,7 +251,7 @@ export default function Pictures() {
                   <th className="px-6 py-4 text-left font-semibold">Start Date</th>
                   <th className="px-6 py-4 text-left font-semibold">End Date</th>
                   <th className="px-6 py-4 text-left font-semibold">Background Color</th>
-                  <th className="px-6 py-4 text-left font-semibold">Action</th>
+                  <th className="px-6 py-4 text-left font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-gray-700">
@@ -223,7 +270,7 @@ export default function Pictures() {
                             alt="Uploaded"
                             width={100}
                             height={100}
-                            className="w-16 rounded-md h-16 object-cover transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
+                            className="rounded-md object-cover w-20 h-16 hover:scale-110 transition hover:rotate-3 duration-300"
                           />
                         </div>
                       </td>
@@ -240,12 +287,18 @@ export default function Pictures() {
                           <div className="ml-1">{picture.backgroundColor}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 flex justify-center">
                         <button
-                          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 cursor-pointer"
+                          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 cursor-pointer mt-3"
                           onClick={() => handleDelete(picture.id)}
                         >
                           Delete
+                        </button>
+                        <button
+                          className="bg-orange-400 text-white px-4 py-2 rounded-md hover:bg-orange-500 cursor-pointer ml-2 mt-3"
+                          onClick={() => toggleModal(true, picture)}
+                        >
+                          Edit
                         </button>
                       </td>
                     </tr>

@@ -161,6 +161,57 @@ app.delete('/pictures/:id', (req, res) => {
   }
 });
 
+// Ajouter cette route pour la mise à jour des images
+app.put('/pictures/:id', upload.single('image'), (req, res) => {
+  const { id } = req.params;
+  const { delay, startDate, endDate, backgroundColor } = req.body;
+
+  try {
+    // Lire les données actuelles
+    let picturesData = readDataFromFile(picturesDataFilePath);
+    const pictureIndex = picturesData.findIndex(picture => picture.id === id);
+
+    if (pictureIndex === -1) {
+      return res.status(404).json({ message: 'Picture not found' });
+    }
+
+    const currentPicture = picturesData[pictureIndex];
+    
+    // Préparer les données mises à jour
+    const updatedPicture = {
+      ...currentPicture,
+      delay: delay || currentPicture.delay,
+      startDate: startDate || currentPicture.startDate,
+      endDate: endDate || currentPicture.endDate,
+      backgroundColor: backgroundColor || currentPicture.backgroundColor
+    };
+
+    // Si une nouvelle image est téléchargée, mettre à jour le chemin et supprimer l'ancienne
+    if (req.file) {
+      // Supprimer l'ancienne image
+      const oldFilePath = path.join(__dirname, currentPicture.imagePath);
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlinkSync(oldFilePath);
+      }
+      
+      // Mettre à jour le chemin de la nouvelle image
+      updatedPicture.imagePath = `/uploads/${req.file.filename}`;
+    }
+
+    // Mettre à jour les données
+    picturesData[pictureIndex] = updatedPicture;
+    writeDataToFile(picturesDataFilePath, picturesData);
+
+    res.status(200).json({ 
+      message: 'Picture updated successfully', 
+      data: updatedPicture 
+    });
+  } catch (error) {
+    console.error('Error updating picture:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Routes pour les écrans
 app.get('/screens', (req, res) => {
   try {

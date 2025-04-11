@@ -175,7 +175,7 @@ export default function Screens() {
           {error && <p className="text-red-500">{error}</p>}
 
           <div className="flex justify-center">
-            <table className="w-full bg-white rounded-lg shadow-md overflow-hidden border-separate border-spacing-0">
+            <table className="w-full shadow-md border-separate border-spacing-0 rounded-lg overflow-hidden shadow-sm border border-gray-200">
               <thead className="bg-gray-100 text-gray-900">
                 <tr>
                   <th className="px-6 py-4 text-left font-semibold">ID</th>

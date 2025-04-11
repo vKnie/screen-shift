@@ -224,7 +224,7 @@ export default function ScreenImages() {
             <h3 className="text-xl font-semibold mb-4 text-gray-700">{group}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               {groupScreens.map((screen) => (
-                <div key={screen.id} className="bg-gray-50 rounded-lg overflow-hidden shadow-sm border border-gray-200">
+                <div key={screen.id} className=" rounded-lg overflow-hidden shadow-sm border border-gray-200">
                   <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
                     <h4 className="font-medium text-gray-800">{screen.name}</h4>
                     <p className="text-xs text-gray-500">ID: {screen.id}</p>
@@ -250,7 +250,7 @@ export default function ScreenImages() {
                         {screen.lsimg.map((imageId) => {
                           const picture = getPictureDetails(imageId);
                           return picture ? (
-                            <div key={imageId} className="relative border border-gray-200 rounded-md p-2">
+                            <div key={imageId} className="relative border border-gray-200 rounded-md p-2 hover:bg-gray-100 transition-all duration-100">
                               <div className="flex items-center">
                                 <div className="flex-shrink-0 mr-3">
                                   <Image
