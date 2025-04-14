@@ -13,9 +13,10 @@ interface FormData {
   group: string;
 }
 
-const API_URL = 'http://localhost:9999';
+const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
 
 export default function Screens() {
+
   const [formData, setFormData] = useState<FormData>({
     name: '',
     group: '',

@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { HomeIcon, PhotoIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, PhotoIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon, ArrowsRightLeftIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   onLanguageChange: (language: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onLanguageChange }) => {
+export default function Sidebar({ onLanguageChange }: SidebarProps) {
   return (
     <div className="w-64 h-screen bg-white border-r border-gray-200 shadow-md fixed top-0 left-0">
       <div className="p-6 border-b border-gray-200">
@@ -40,6 +40,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onLanguageChange }) => {
               Configuration
             </Link>
           </li>
+          <li>
+            <Link href="/convert" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
+              <ArrowsRightLeftIcon className="h-5 w-5 text-gray-700 mr-2" />
+              Convert to
+            </Link>
+          </li>
+          <li>
+            <Link href="/logs" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
+              <DocumentTextIcon className="h-5 w-5 text-gray-700 mr-2" />
+              Logs
+            </Link>
+          </li>
         </ul>
       </nav>
 
@@ -56,6 +68,4 @@ const Sidebar: React.FC<SidebarProps> = ({ onLanguageChange }) => {
       </div>
     </div>
   );
-};
-
-export default Sidebar;
+}

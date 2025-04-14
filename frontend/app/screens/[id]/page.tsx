@@ -20,6 +20,8 @@ interface PictureData {
   backgroundColor: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
+
 const ScreenPage = () => {
   const { id } = useParams();
   const [screenData, setScreenData] = useState<ScreenData | null>(null);
@@ -52,7 +54,7 @@ const ScreenPage = () => {
       console.log('Fetching data for ID:', id);
       const fetchScreenData = async () => {
         try {
-          const res = await fetch(`http://localhost:9999/screens/${id}`);
+          const res = await fetch(`${API_URL}/screens/${id}`);
           console.log('Response status:', res.status);
           if (!res.ok) {
             throw new Error('Failed to fetch');
@@ -89,7 +91,7 @@ const ScreenPage = () => {
   
       try {
         const promises = screenData.lsimg.map(async (imgId) => {
-          const res = await fetch(`http://localhost:9999/pictures/${imgId}`);
+          const res = await fetch(`${API_URL}/pictures/${imgId}`);
           if (!res.ok) throw new Error('Failed to fetch image');
           return res.json();
         });
@@ -183,7 +185,7 @@ const ScreenPage = () => {
         transition: 'opacity 1s ease-in-out'
       }}>
         <Image
-          src={`http://localhost:9999${validPictures[currentIndex].imagePath}`}
+          src={`${API_URL}${validPictures[currentIndex].imagePath}`}
           alt="Uploaded"
           layout="fill"
           objectFit="contain"

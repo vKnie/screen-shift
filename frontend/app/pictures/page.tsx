@@ -21,7 +21,7 @@ interface FormData {
   backgroundColor: string;
 }
 
-const API_URL = 'http://localhost:9999';
+const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
 
 export default function Pictures() {
   const [formData, setFormData] = useState<FormData>({

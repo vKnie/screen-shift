@@ -20,7 +20,7 @@ interface FormData {
   pictureId: string;
 }
 
-const API_URL = 'http://localhost:9999';
+const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
 
 export default function ScreenImages() {
   const [formData, setFormData] = useState<FormData>({
@@ -126,7 +126,7 @@ export default function ScreenImages() {
 
     // Create an updated copy of the screen with the new image
     const updatedLsimg = [...currentScreen.lsimg, formData.pictureId];
-    
+
     try {
       const response = await fetch(`${API_URL}/screens/${formData.screenId}`, {
         method: 'PATCH',
@@ -135,11 +135,11 @@ export default function ScreenImages() {
         },
         body: JSON.stringify({ lsimg: updatedLsimg }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('Server Response:', data);
       setIsModalOpen(false);
@@ -158,7 +158,7 @@ export default function ScreenImages() {
   const toggleModal = () => setIsModalOpen(!isModalOpen);
 
   const handleDeleteImage = async (screenId: string, imageId: string) => {
-    
+
     const currentScreen = screens.find(screen => screen.id === screenId);
     if (!currentScreen) {
       setError("Screen not found");
@@ -166,7 +166,7 @@ export default function ScreenImages() {
     }
 
     const updatedLsimg = currentScreen.lsimg.filter(id => id !== imageId);
-    
+
     try {
       const response = await fetch(`${API_URL}/screens/${screenId}`, {
         method: 'PATCH',
@@ -175,11 +175,11 @@ export default function ScreenImages() {
         },
         body: JSON.stringify({ lsimg: updatedLsimg }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      
+
       fetchScreens(); // Reload screens after deletion
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -229,7 +229,7 @@ export default function ScreenImages() {
                     <h4 className="font-medium text-gray-800">{screen.name}</h4>
                     <p className="text-xs text-gray-500">ID: {screen.id}</p>
                   </div>
-                  
+
                   <div className="p-4">
                     <div className="flex justify-between items-center mb-3">
                       <h5 className="text-sm font-medium text-gray-600">Images ({screen.lsimg.length})</h5>
@@ -240,7 +240,7 @@ export default function ScreenImages() {
                         Add an image
                       </button>
                     </div>
-                    
+
                     {screen.lsimg.length === 0 ? (
                       <div className="bg-gray-200 w-full h-32 flex items-center justify-center rounded-md">
                         <p className="text-gray-500">No images</p>
@@ -294,8 +294,8 @@ export default function ScreenImages() {
           <div className="absolute inset-0 backdrop-blur-md bg-black/30 z-10" onClick={toggleModal}></div>
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg z-20">
             <h3 className="text-xl font-semibold mb-4 text-gray-800">
-              {selectedScreenId ? 
-                `Add an image to the screen: ${screens.find(s => s.id === selectedScreenId)?.name}` : 
+              {selectedScreenId ?
+                `Add an image to the screen: ${screens.find(s => s.id === selectedScreenId)?.name}` :
                 'Add an image to the screen'}
             </h3>
             <form onSubmit={handleSubmit}>
@@ -329,8 +329,8 @@ export default function ScreenImages() {
                 </div>
               )}
               <div className="flex justify-between space-x-2">
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 transition"
                 >
                   Add
