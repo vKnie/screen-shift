@@ -114,7 +114,6 @@ app.delete('/pictures/:id', (req, res) => {
   const { id } = req.params;
 
   try {
-    // Lire les données des images
     let picturesData = readDataFromFile(picturesDataFilePath);
     const pictureToDelete = picturesData.find(picture => picture.id === id);
 
@@ -122,31 +121,26 @@ app.delete('/pictures/:id', (req, res) => {
       return res.status(404).json({ message: 'Picture not found' });
     }
 
-    // Vérifier si l'image est utilisée dans un écran
     const screensData = readDataFromFile(screensDataFilePath);
     const screensUsingPicture = screensData.filter(screen => 
       screen.lsimg && screen.lsimg.includes(id)
     );
 
     if (screensUsingPicture.length > 0) {
-      // Si l'image est utilisée, la supprimer de tous les écrans qui l'utilisent
       for (const screen of screensData) {
         if (screen.lsimg && screen.lsimg.includes(id)) {
           screen.lsimg = screen.lsimg.filter(imgId => imgId !== id);
         }
       }
       
-      // Mettre à jour le fichier des écrans
       writeDataToFile(screensDataFilePath, screensData);
     }
 
-    // Supprimer le fichier physique
     const filePath = path.join(__dirname, pictureToDelete.imagePath);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    // Supprimer l'image des données
     picturesData = picturesData.filter(picture => picture.id !== id);
     writeDataToFile(picturesDataFilePath, picturesData);
 
@@ -161,13 +155,11 @@ app.delete('/pictures/:id', (req, res) => {
   }
 });
 
-// Ajouter cette route pour la mise à jour des images
 app.put('/pictures/:id', upload.single('image'), (req, res) => {
   const { id } = req.params;
   const { delay, startDate, endDate, backgroundColor } = req.body;
 
   try {
-    // Lire les données actuelles
     let picturesData = readDataFromFile(picturesDataFilePath);
     const pictureIndex = picturesData.findIndex(picture => picture.id === id);
 
@@ -177,7 +169,6 @@ app.put('/pictures/:id', upload.single('image'), (req, res) => {
 
     const currentPicture = picturesData[pictureIndex];
     
-    // Préparer les données mises à jour
     const updatedPicture = {
       ...currentPicture,
       delay: delay || currentPicture.delay,
@@ -186,19 +177,15 @@ app.put('/pictures/:id', upload.single('image'), (req, res) => {
       backgroundColor: backgroundColor || currentPicture.backgroundColor
     };
 
-    // Si une nouvelle image est téléchargée, mettre à jour le chemin et supprimer l'ancienne
     if (req.file) {
-      // Supprimer l'ancienne image
       const oldFilePath = path.join(__dirname, currentPicture.imagePath);
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
       }
       
-      // Mettre à jour le chemin de la nouvelle image
       updatedPicture.imagePath = `/uploads/${req.file.filename}`;
     }
 
-    // Mettre à jour les données
     picturesData[pictureIndex] = updatedPicture;
     writeDataToFile(picturesDataFilePath, picturesData);
 
@@ -212,7 +199,6 @@ app.put('/pictures/:id', upload.single('image'), (req, res) => {
   }
 });
 
-// Routes pour les écrans
 app.get('/screens', (req, res) => {
   try {
     const data = readDataFromFile(screensDataFilePath);
@@ -277,7 +263,6 @@ app.patch('/screens/:id', (req, res) => {
       return res.status(404).json({ message: 'Screen not found' });
     }
 
-    // Mettre à jour l'écran avec les nouvelles données
     currentData[screenIndex] = {
       ...currentData[screenIndex],
       ...updates
@@ -309,10 +294,8 @@ app.get('/screens/:id', (req, res) => {
 });
 
 
-// Servir les fichiers statiques (images)
 app.use('/uploads', express.static(uploadFolder));
 
-// Démarrer le serveur
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });

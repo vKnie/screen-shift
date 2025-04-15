@@ -7,8 +7,7 @@ const fs = require('fs');
 
 const app = express();
 
-// Configuration de winston pour les logs
-const logDir = path.join(__dirname, 'logs'); // Dossier où les logs seront stockés
+const logDir = path.join(__dirname, 'logs');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -29,13 +28,12 @@ const logger = winston.createLogger({
   ]
 });
 
-// Configuration CORS
 const corsOptions = {
-  origin: 'http://localhost:3000', // Remplacez par l'URL de votre frontend
+  origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true,
   optionsSuccessStatus: 204,
 };
+
 
 app.use(cors(corsOptions));
 
@@ -58,7 +56,6 @@ app.get('/logs', (req, res) => {
   res.json(logs);
 });
 
-// Middleware pour logger les requêtes avec morgan et winston
 app.use(require('morgan')('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
 app.use(express.json());
