@@ -101,7 +101,7 @@ export default function Pictures() {
         console.log('Server Response (Edit):', data);
       } else {
         // Create new picture
-        const response = await fetch(`${API_URL}/upload`, {
+        const response = await fetch(`${API_URL}/pictures/upload`, {
           method: 'POST',
           body: formDataToSend,
         });
@@ -140,7 +140,7 @@ export default function Pictures() {
       setIsEditMode(true);
       setEditingPictureId(picture.id);
       setFormData({
-        image: null, // Can't pre-fill the file input
+        image: null,
         delay: picture.delay,
         startDate: picture.startDate,
         endDate: picture.endDate,

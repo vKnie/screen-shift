@@ -63,7 +63,6 @@ export default function Sidebar({ onLanguageChange }: SidebarProps) {
         >
           <option value="fr">🇫🇷 Français</option>
           <option value="en">🇬🇧 English</option>
-          {/* Ajoutez d'autres langues si nécessaire */}
         </select>
       </div>
     </div>

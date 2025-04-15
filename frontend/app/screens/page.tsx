@@ -104,7 +104,7 @@ export default function Screens() {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      fetchScreens(); // Recharger les écrans après la suppression
+      fetchScreens();
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error('Error deleting screen:', error.message);
