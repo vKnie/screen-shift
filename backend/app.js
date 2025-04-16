@@ -1,62 +1,27 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
-const winston = require('winston');
-require('winston-daily-rotate-file');
 const fs = require('fs');
-
 const app = express();
 
-const logDir = path.join(__dirname, 'logs');
-
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.printf(({ timestamp, level, message }) => {
-      return `${timestamp} ${level}: ${message}`;
-    })
-  ),
-  transports: [
-    new winston.transports.DailyRotateFile({
-      filename: path.join(logDir, 'screenshift-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '7d'
-    })
-  ]
-});
-
-const corsOptions = {
-  origin: '*',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  optionsSuccessStatus: 204,
-};
-
-
-app.use(cors(corsOptions));
-
-app.get('/logs', (req, res) => {
-  const logs = [];
-
-  try {
-    const logFiles = fs.readdirSync(logDir).filter(file => file.endsWith('.log'));
-
-    logFiles.forEach(file => {
-      const filePath = path.join(logDir, file);
-      const content = fs.readFileSync(filePath, 'utf-8');
-      logs.push(...content.split('\n').filter(line => line.trim() !== ''));
-    });
-  } catch (error) {
-    console.error('Erreur lors de la lecture des fichiers de logs:', error);
-    return res.status(500).json({ error: 'Erreur lors de la récupération des logs' });
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma, Expires, If-Modified-Since, If-None-Match, X-API-KEY');
+  res.header('Access-Control-Expose-Headers', 'Content-Range, X-Total-Count, Cache-Control');
+  res.header('Access-Control-Max-Age', '86400');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
-
-  res.json(logs);
+  next();
 });
 
-app.use(require('morgan')('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use((req, res, next) => {
+  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.header('Pragma', 'no-cache');
+  res.header('Expires', '0');
+  next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -70,6 +35,17 @@ app.use('/screens', screensRoutes);
 app.use('/groups', groupsRoutes);
 
 const uploadFolder = path.join(__dirname, 'uploads');
-app.use('/uploads', express.static(uploadFolder));
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(uploadFolder));
+
+app.use((err, req, res, next) => {
+  console.error(`Erreur: ${err.message}`);
+  res.status(err.status || 500).json({
+    message: err.message,
+    error: process.env.NODE_ENV === 'production' ? {} : err
+  });
+});
 
 module.exports = app;

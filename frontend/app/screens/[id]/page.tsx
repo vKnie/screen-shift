@@ -28,12 +28,9 @@ const DEFAULT_DELAY = 5; // secondes
 const REFRESH_INTERVAL = 15 * 1000; // 15 secondes
 const MIN_DISPLAY_TIME = 3000; // Temps minimum d'affichage d'une image
 
-// Style d'animation unique et stable
-const ANIMATION_STYLE = 'fade'; // Utiliser le fondu simple qui est le plus fiable
-
 const ScreenPage = () => {
   const { id } = useParams();
-  const [screenData, setScreenData] = useState<ScreenData | null>(null);
+  const [, setScreenData] = useState<ScreenData | null>(null);
   const [pictures, setPictures] = useState<PictureData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
@@ -114,17 +111,17 @@ const ScreenPage = () => {
         throw new Error(`Erreur ${screenRes.status}: Impossible de récupérer les données d'écran`);
       }
       
-      const screenData = await screenRes.json();
-      setScreenData(screenData);
+      const screenDataResponse = await screenRes.json();
+      setScreenData(screenDataResponse);
       
       // Si aucune image associée, terminer
-      if (!screenData.lsimg || screenData.lsimg.length === 0) {
+      if (!screenDataResponse.lsimg || screenDataResponse.lsimg.length === 0) {
         setPictures([]);
         return;
       }
       
       // Récupérer les images - utiliser Promise.allSettled pour gérer les erreurs individuelles
-      const imgPromises = screenData.lsimg.map(async (imgId) => {
+      const imgPromises = screenDataResponse.lsimg.map(async (imgId: string) => {
         try {
           const imgRes = await fetch(`${API_URL}/pictures/${imgId}?nocache=${timestamp}`, {
             cache: 'no-store',
