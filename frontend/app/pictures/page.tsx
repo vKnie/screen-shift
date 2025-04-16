@@ -6,11 +6,17 @@ import Image from 'next/image';
 interface Picture {
   id: string;
   imagePath: string;
-  status: string;
+  status?: string;
   delay: number;
   startDate: string;
   endDate: string;
   backgroundColor: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
+  pictures: string[];
 }
 
 interface FormData {
@@ -19,6 +25,7 @@ interface FormData {
   startDate: string;
   endDate: string;
   backgroundColor: string;
+  groupIds: string[]; // IDs des groupes auxquels cette image appartient
 }
 
 const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
@@ -30,13 +37,18 @@ export default function Pictures() {
     startDate: '',
     endDate: '',
     backgroundColor: '',
+    groupIds: [],
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingPictureId, setEditingPictureId] = useState<string | null>(null);
   const [pictures, setPictures] = useState<Picture[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [error, setError] = useState<string | null>(null);
+  const [picturesByGroup, setPicturesByGroup] = useState<{[key: string]: Picture[]}>({});
 
+  // Récupérer les images
   const fetchPictures = useCallback(async () => {
     setError(null);
     try {
@@ -63,16 +75,81 @@ export default function Pictures() {
     }
   }, []);
 
+  // Récupérer les groupes
+  const fetchGroups = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/groups`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setGroups(data);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error fetching groups:", error.message);
+        setError("Failed to load groups. Please try again later.");
+      } else {
+        console.error("An unknown error occurred", error);
+        setError("An unknown error occurred. Please try again later.");
+      }
+    }
+  }, []);
+
+  // Récupérer les images groupées par groupe
+  const fetchPicturesByGroups = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/groups/pictures/all`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPicturesByGroup(data);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error fetching pictures by groups:", error.message);
+        setError("Failed to load pictures by groups. Please try again later.");
+      } else {
+        console.error("An unknown error occurred", error);
+        setError("An unknown error occurred. Please try again later.");
+      }
+    }
+  }, []);
+
   useEffect(() => {
     fetchPictures();
-  }, [fetchPictures]);
+    fetchGroups();
+    fetchPicturesByGroups();
+  }, [fetchPictures, fetchGroups, fetchPicturesByGroups]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, files } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: type === 'file' && files ? files[0] : value,
-    }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type, files } = e.target as HTMLInputElement;
+    
+    if (name === 'groupIds' && type === 'checkbox') {
+      const checkbox = e.target as HTMLInputElement;
+      const groupId = checkbox.value;
+      
+      setFormData((prevData) => {
+        const groupIds = [...prevData.groupIds];
+        if (checkbox.checked) {
+          groupIds.push(groupId);
+        } else {
+          const index = groupIds.indexOf(groupId);
+          if (index !== -1) {
+            groupIds.splice(index, 1);
+          }
+        }
+        return { ...prevData, groupIds };
+      });
+    } else {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: type === 'file' && files ? files[0] : value,
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,6 +166,7 @@ export default function Pictures() {
     formDataToSend.append('startDate', formData.startDate || '');
     formDataToSend.append('endDate', formData.endDate || '');
     formDataToSend.append('backgroundColor', formData.backgroundColor || '');
+    formDataToSend.append('groups', JSON.stringify(formData.groupIds));
 
     try {
       if (isEditMode && editingPictureId) {
@@ -114,6 +192,7 @@ export default function Pictures() {
       setEditingPictureId(null);
       resetForm();
       fetchPictures();
+      fetchPicturesByGroups();
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error('Error with picture:', error.message);
@@ -132,11 +211,17 @@ export default function Pictures() {
       startDate: '',
       endDate: '',
       backgroundColor: '',
+      groupIds: [],
     });
   };
 
   const toggleModal = (edit = false, picture?: Picture) => {
     if (edit && picture) {
+      // Trouver les groupes associés avec cette image
+      const associatedGroupIds = groups
+        .filter(group => group.pictures && group.pictures.includes(picture.id))
+        .map(group => group.id);
+      
       setIsEditMode(true);
       setEditingPictureId(picture.id);
       setFormData({
@@ -145,6 +230,7 @@ export default function Pictures() {
         startDate: picture.startDate,
         endDate: picture.endDate,
         backgroundColor: picture.backgroundColor,
+        groupIds: associatedGroupIds,
       });
     } else {
       setIsEditMode(false);
@@ -163,6 +249,7 @@ export default function Pictures() {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       fetchPictures();
+      fetchPicturesByGroups();
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error('Error deleting picture:', error.message);
@@ -174,6 +261,27 @@ export default function Pictures() {
     }
   };
 
+  // Obtenir les images à afficher selon le groupe sélectionné
+  const getFilteredPictures = () => {
+    if (selectedGroup === 'all') {
+      return pictures;
+    }
+    
+    const group = groups.find(g => g.id === selectedGroup);
+    if (!group) return [];
+    
+    // Retourner les images de ce groupe depuis le picturesByGroup
+    return picturesByGroup[group.name] || [];
+  };
+
+  // Obtenir les groupes associés à une image
+  const getAssociatedGroups = (pictureId: string) => {
+    return groups
+      .filter(group => group.pictures && group.pictures.includes(pictureId))
+      .map(group => group.name)
+      .join(', ');
+  };
+
   const formFields = [
     ...(isEditMode ? [] : [{ label: 'Choose Image', type: 'file', name: 'image', accept: 'image/*' }]),
     { label: 'Delay (seconds)', type: 'number', name: 'delay' },
@@ -181,6 +289,8 @@ export default function Pictures() {
     { label: 'End Date', type: 'date', name: 'endDate' },
     { label: 'Background Color', type: 'color', name: 'backgroundColor' },
   ];
+
+  const filteredPictures = getFilteredPictures();
 
   return (
     <div>
@@ -191,13 +301,28 @@ export default function Pictures() {
 
       <div className="flex justify-center mt-10">
         <div className="w-full max-w-8xl px-4">
-          <div className="mb-4">
+          <div className="mb-4 flex justify-between items-center">
             <button
               className="bg-blue-500 text-white px-5 py-2 rounded-md hover:bg-blue-600 cursor-pointer"
               onClick={() => toggleModal()}
             >
               Add Picture
             </button>
+
+            <div className="flex items-center space-x-2">
+              <label htmlFor="groupFilter" className="text-gray-700">Filter by Group:</label>
+              <select
+                id="groupFilter"
+                className="p-2 border border-gray-300 rounded-md"
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+              >
+                <option value="all">All Groups</option>
+                {groups.map(group => (
+                  <option key={group.id} value={group.id}>{group.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {isModalOpen && (
@@ -221,6 +346,27 @@ export default function Pictures() {
                       />
                     </div>
                   ))}
+                  
+                  <div className="mb-4">
+                    <label className="block text-gray-700 mb-2">Assign to Groups:</label>
+                    <div className="max-h-40 overflow-y-auto p-2 border border-gray-300 rounded-md">
+                      {groups.map(group => (
+                        <div key={group.id} className="flex items-center mb-2">
+                          <input
+                            type="checkbox"
+                            id={`group-${group.id}`}
+                            name="groupIds"
+                            value={group.id}
+                            checked={formData.groupIds.includes(group.id)}
+                            onChange={handleChange}
+                            className="mr-2"
+                          />
+                          <label htmlFor={`group-${group.id}`}>{group.name}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
                   <div className="flex justify-between space-x-2">
                     <button type="submit" className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 cursor-pointer">
                       {isEditMode ? 'Update' : 'Save'}
@@ -251,18 +397,19 @@ export default function Pictures() {
                   <th className="px-6 py-4 text-left font-semibold">Start Date</th>
                   <th className="px-6 py-4 text-left font-semibold">End Date</th>
                   <th className="px-6 py-4 text-left font-semibold">Background Color</th>
+                  <th className="px-6 py-4 text-left font-semibold">Groups</th>
                   <th className="px-6 py-4 text-left font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-gray-700">
-                {pictures.length === 0 ? (
+                {filteredPictures.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-4">No pictures available</td>
+                    <td colSpan={9} className="text-center py-4">No pictures available</td>
                   </tr>
                 ) : (
-                  pictures.map((picture) => (
+                  filteredPictures.map((picture) => (
                     <tr key={picture.id} className="hover:bg-gray-50 transition-all duration-100">
-                      <td className="px-6 py-4">{picture.imagePath}</td>
+                      <td className="px-6 py-4">{picture.imagePath.split('/').pop()}</td>
                       <td className="px-6 py-4">
                         <div className="relative group">
                           <Image
@@ -274,7 +421,7 @@ export default function Pictures() {
                           />
                         </div>
                       </td>
-                      <td className="px-6 py-4">{picture.status}</td>
+                      <td className="px-6 py-4">{picture.status || 'Active'}</td>
                       <td className="px-6 py-4">{picture.delay}</td>
                       <td className="px-6 py-4">{picture.startDate}</td>
                       <td className="px-6 py-4">{picture.endDate}</td>
@@ -286,6 +433,9 @@ export default function Pictures() {
                           ></div>
                           <div className="ml-1">{picture.backgroundColor}</div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {getAssociatedGroups(picture.id) || 'None'}
                       </td>
                       <td className="px-6 py-4 flex justify-center">
                         <button

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { HomeIcon, PhotoIcon, ComputerDesktopIcon, AdjustmentsHorizontalIcon, ArrowsRightLeftIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, PhotoIcon, AdjustmentsHorizontalIcon, ArrowsRightLeftIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   onLanguageChange: (language: string) => void;
@@ -26,12 +26,6 @@ export default function Sidebar({ onLanguageChange }: SidebarProps) {
             <Link href="/pictures" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
               <PhotoIcon className="h-5 w-5 text-gray-700 mr-2" />
               Pictures
-            </Link>
-          </li>
-          <li>
-            <Link href="/screens" className="flex items-center py-3 px-6 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-100">
-              <ComputerDesktopIcon className="h-5 w-5 text-gray-700 mr-2" />
-              Screens
             </Link>
           </li>
           <li>

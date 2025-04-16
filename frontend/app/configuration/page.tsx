@@ -10,6 +10,12 @@ interface Screen {
   lsimg: string[];
 }
 
+interface Group {
+  id: string;
+  name: string;
+  pictures: string[];
+}
+
 interface Picture {
   id: string;
   imagePath: string;
@@ -30,6 +36,7 @@ export default function ScreenImages() {
   const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [screens, setScreens] = useState<Screen[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +55,27 @@ export default function ScreenImages() {
       if (error instanceof Error) {
         console.error("Error fetching screens:", error.message);
         setError("Failed to load screens. Please try again later.");
+      } else {
+        console.error("An unknown error occurred", error);
+        setError("An unknown error occurred. Please try again later.");
+      }
+    }
+  }, []);
+
+  const fetchGroups = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/groups`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setGroups(data);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error fetching groups:", error.message);
+        setError("Failed to load groups. Please try again later.");
       } else {
         console.error("An unknown error occurred", error);
         setError("An unknown error occurred. Please try again later.");
@@ -78,8 +106,9 @@ export default function ScreenImages() {
 
   useEffect(() => {
     fetchScreens();
+    fetchGroups();
     fetchPictures();
-  }, [fetchScreens, fetchPictures]);
+  }, [fetchScreens, fetchGroups, fetchPictures]);
 
   const handleOpenModal = (screenId: string) => {
     setSelectedScreenId(screenId);
@@ -87,20 +116,18 @@ export default function ScreenImages() {
       screenId: screenId,
       pictureId: '',
     });
+    setSelectedImage(null);
     setIsModalOpen(true);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({
+  const handleImageClick = (pictureId: string) => {
+    setFormData(prevData => ({
       ...prevData,
-      [name]: value,
+      pictureId: pictureId
     }));
-
-    if (name === "pictureId") {
-      const selectedPicture = pictures.find((picture) => picture.id === value);
-      setSelectedImage(selectedPicture ? `${API_URL}${selectedPicture.imagePath}` : null);
-    }
+    
+    const selectedPicture = pictures.find((picture) => picture.id === pictureId);
+    setSelectedImage(selectedPicture ? `${API_URL}${selectedPicture.imagePath}` : null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,7 +185,6 @@ export default function ScreenImages() {
   const toggleModal = () => setIsModalOpen(!isModalOpen);
 
   const handleDeleteImage = async (screenId: string, imageId: string) => {
-
     const currentScreen = screens.find(screen => screen.id === screenId);
     if (!currentScreen) {
       setError("Screen not found");
@@ -192,17 +218,34 @@ export default function ScreenImages() {
     }
   };
 
+  // Fonction pour obtenir le nom d'un groupe à partir de son id
+  const getGroupName = (groupId: string): string => {
+    const group = groups.find(g => g.id === groupId);
+    return group ? group.name : 'No Group';
+  };
+
+  // Regrouper les écrans par groupe en utilisant le nom du groupe plutôt que l'id
   const groupedScreens = screens.reduce((acc, screen) => {
-    const group = screen.group || 'No Group';
-    if (!acc[group]) {
-      acc[group] = [];
+    const groupName = getGroupName(screen.group) || 'No Group';
+    if (!acc[groupName]) {
+      acc[groupName] = [];
     }
-    acc[group].push(screen);
+    acc[groupName].push(screen);
     return acc;
   }, {} as Record<string, Screen[]>);
 
   const getPictureDetails = (pictureId: string) => {
     return pictures.find(picture => picture.id === pictureId);
+  };
+
+  // Filter out images that are already associated with the current screen
+  const getAvailablePictures = () => {
+    if (!selectedScreenId) return pictures;
+    
+    const currentScreen = screens.find(screen => screen.id === selectedScreenId);
+    if (!currentScreen) return pictures;
+    
+    return pictures.filter(picture => !currentScreen.lsimg.includes(picture.id));
   };
 
   return (
@@ -219,12 +262,12 @@ export default function ScreenImages() {
       )}
 
       <div className="space-y-8 mt-10">
-        {Object.entries(groupedScreens).map(([group, groupScreens]) => (
-          <div key={group} className="bg-white rounded-lg shadow-custom p-4">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">{group}</h3>
+        {Object.entries(groupedScreens).map(([groupName, groupScreens]) => (
+          <div key={groupName} className="bg-white rounded-lg shadow-custom p-4">
+            <h3 className="text-xl font-semibold mb-4 text-gray-700">{groupName}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               {groupScreens.map((screen) => (
-                <div key={screen.id} className=" rounded-lg overflow-hidden shadow-sm border border-gray-200">
+                <div key={screen.id} className="rounded-lg overflow-hidden shadow-sm border border-gray-200">
                   <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
                     <h4 className="font-medium text-gray-800">{screen.name}</h4>
                     <p className="text-xs text-gray-500">ID: {screen.id}</p>
@@ -292,28 +335,46 @@ export default function ScreenImages() {
       {isModalOpen && (
         <div className="fixed inset-0 flex justify-center items-center z-50">
           <div className="absolute inset-0 backdrop-blur-md bg-black/30 z-10" onClick={toggleModal}></div>
-          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg z-20">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-3xl z-20 max-h-screen overflow-y-auto">
             <h3 className="text-xl font-semibold mb-4 text-gray-800">
               {selectedScreenId ?
                 `Add an image to the screen: ${screens.find(s => s.id === selectedScreenId)?.name}` :
                 'Add an image to the screen'}
             </h3>
             <form onSubmit={handleSubmit}>
+              {/* Image preview gallery */}
               <div className="mb-4">
-                <label className="block text-gray-700 font-medium">Choose an image:</label>
-                <select
-                  name="pictureId"
-                  onChange={handleChange}
-                  className="mt-2 p-2 border border-gray-300 rounded-md w-full"
-                >
-                  <option value="">Select an image</option>
-                  {pictures.map((picture) => (
-                    <option key={picture.id} value={picture.id}>
-                      {picture.id} - {picture.imagePath.split('/').pop()}
-                    </option>
-                  ))}
-                </select>
+                <h4 className="text-gray-700 font-medium mb-2">Available images:</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 max-h-96 overflow-y-auto p-2 border border-gray-200 rounded-md">
+                  {getAvailablePictures().length === 0 ? (
+                    <div className="col-span-full text-center py-6 text-gray-500">
+                      No available images found for this screen
+                    </div>
+                  ) : (
+                    getAvailablePictures().map((picture) => (
+                      <div 
+                        key={picture.id} 
+                        className={`cursor-pointer p-2 rounded-md transition-all duration-200 ${formData.pictureId === picture.id ? 'bg-blue-100 ring-2 ring-blue-500 shadow-md' : 'hover:bg-gray-100'}`}
+                        onClick={() => handleImageClick(picture.id)}
+                      >
+                        <div className="relative aspect-video w-full">
+                          <Image
+                            src={`${API_URL}${picture.imagePath}`}
+                            alt={picture.imagePath.split('/').pop() || ''}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            className="object-cover rounded-md"
+                          />
+                        </div>
+                        <p className="text-xs mt-1 truncate text-center">
+                          {picture.imagePath.split('/').pop()}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
+
               {selectedImage && (
                 <div className="mb-4">
                   <h4 className="text-gray-700 font-medium">Selected image:</h4>
@@ -328,10 +389,12 @@ export default function ScreenImages() {
                   </div>
                 </div>
               )}
+
               <div className="flex justify-between space-x-2">
                 <button
                   type="submit"
                   className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 transition"
+                  disabled={!formData.pictureId}
                 >
                   Add
                 </button>

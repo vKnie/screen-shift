@@ -63,9 +63,11 @@ app.use(express.urlencoded({ extended: true }));
 
 const picturesRoutes = require('./routes/picturesRoutes');
 const screensRoutes = require('./routes/screensRoutes');
+const groupsRoutes = require('./routes/groupsRoutes');
 
 app.use('/pictures', picturesRoutes);
 app.use('/screens', screensRoutes);
+app.use('/groups', groupsRoutes);
 
 const uploadFolder = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadFolder));
