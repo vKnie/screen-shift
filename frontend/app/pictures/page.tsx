@@ -25,10 +25,11 @@ interface FormData {
   startDate: string;
   endDate: string;
   backgroundColor: string;
-  groupIds: string[]; // IDs des groupes auxquels cette image appartient
+  groupId: string; // Un seul ID de groupe au lieu d'un tableau
 }
 
 const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
+const DEFAULT_BACKGROUND_COLOR = '#FFFFFF'; // Couleur blanche par défaut
 
 export default function Pictures() {
   const [formData, setFormData] = useState<FormData>({
@@ -36,8 +37,8 @@ export default function Pictures() {
     delay: 0,
     startDate: '',
     endDate: '',
-    backgroundColor: '',
-    groupIds: [],
+    backgroundColor: DEFAULT_BACKGROUND_COLOR, // Initialiser avec la couleur par défaut
+    groupId: '', // Un seul groupe
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -86,6 +87,11 @@ export default function Pictures() {
 
       const data = await response.json();
       setGroups(data);
+      
+      // Si nous avons des groupes et qu'aucun groupe n'est sélectionné, choisir le premier par défaut
+      if (data.length > 0 && !formData.groupId) {
+        setFormData(prev => ({ ...prev, groupId: data[0].id }));
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error("Error fetching groups:", error.message);
@@ -95,7 +101,7 @@ export default function Pictures() {
         setError("An unknown error occurred. Please try again later.");
       }
     }
-  }, []);
+  }, [formData.groupId]);
 
   // Récupérer les images groupées par groupe
   const fetchPicturesByGroups = useCallback(async () => {
@@ -128,22 +134,11 @@ export default function Pictures() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type, files } = e.target as HTMLInputElement;
     
-    if (name === 'groupIds' && type === 'checkbox') {
-      const checkbox = e.target as HTMLInputElement;
-      const groupId = checkbox.value;
-      
-      setFormData((prevData) => {
-        const groupIds = [...prevData.groupIds];
-        if (checkbox.checked) {
-          groupIds.push(groupId);
-        } else {
-          const index = groupIds.indexOf(groupId);
-          if (index !== -1) {
-            groupIds.splice(index, 1);
-          }
-        }
-        return { ...prevData, groupIds };
-      });
+    if (name === 'groupId' && type === 'radio') {
+      setFormData(prevData => ({
+        ...prevData,
+        groupId: value
+      }));
     } else {
       setFormData((prevData) => ({
         ...prevData,
@@ -155,8 +150,13 @@ export default function Pictures() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isEditMode && (!formData.image || !formData.backgroundColor)) {
-      alert('Please select an image and a background color');
+    if (!isEditMode && !formData.image) {
+      alert('Please select an image');
+      return;
+    }
+
+    if (!formData.groupId) {
+      alert('Please select a group');
       return;
     }
 
@@ -165,8 +165,10 @@ export default function Pictures() {
     formDataToSend.append('delay', String(formData.delay || ''));
     formDataToSend.append('startDate', formData.startDate || '');
     formDataToSend.append('endDate', formData.endDate || '');
-    formDataToSend.append('backgroundColor', formData.backgroundColor || '');
-    formDataToSend.append('groups', JSON.stringify(formData.groupIds));
+    // Utiliser la couleur par défaut si aucune couleur n'est sélectionnée
+    formDataToSend.append('backgroundColor', formData.backgroundColor || DEFAULT_BACKGROUND_COLOR);
+    // Envoyer un tableau avec un seul élément pour la compatibilité avec l'API
+    formDataToSend.append('groups', JSON.stringify([formData.groupId]));
 
     try {
       if (isEditMode && editingPictureId) {
@@ -210,17 +212,16 @@ export default function Pictures() {
       delay: 0,
       startDate: '',
       endDate: '',
-      backgroundColor: '',
-      groupIds: [],
+      backgroundColor: DEFAULT_BACKGROUND_COLOR, // Réinitialiser avec la couleur par défaut
+      groupId: groups.length > 0 ? groups[0].id : '', // Sélectionner le premier groupe par défaut s'il existe
     });
   };
 
   const toggleModal = (edit = false, picture?: Picture) => {
     if (edit && picture) {
-      // Trouver les groupes associés avec cette image
-      const associatedGroupIds = groups
-        .filter(group => group.pictures && group.pictures.includes(picture.id))
-        .map(group => group.id);
+      // Trouver le premier groupe associé à cette image (nous ne prenons que le premier maintenant)
+      const associatedGroups = groups.filter(group => group.pictures && group.pictures.includes(picture.id));
+      const firstAssociatedGroup = associatedGroups.length > 0 ? associatedGroups[0].id : '';
       
       setIsEditMode(true);
       setEditingPictureId(picture.id);
@@ -229,8 +230,8 @@ export default function Pictures() {
         delay: picture.delay,
         startDate: picture.startDate,
         endDate: picture.endDate,
-        backgroundColor: picture.backgroundColor,
-        groupIds: associatedGroupIds,
+        backgroundColor: picture.backgroundColor || DEFAULT_BACKGROUND_COLOR,
+        groupId: firstAssociatedGroup,
       });
     } else {
       setIsEditMode(false);
@@ -274,12 +275,10 @@ export default function Pictures() {
     return picturesByGroup[group.name] || [];
   };
 
-  // Obtenir les groupes associés à une image
-  const getAssociatedGroups = (pictureId: string) => {
-    return groups
-      .filter(group => group.pictures && group.pictures.includes(pictureId))
-      .map(group => group.name)
-      .join(', ');
+  // Obtenir le groupe associé à une image (maintenant nous ne prenons que le premier)
+  const getAssociatedGroup = (pictureId: string) => {
+    const associatedGroups = groups.filter(group => group.pictures && group.pictures.includes(pictureId));
+    return associatedGroups.length > 0 ? associatedGroups[0].name : 'None';
   };
 
   const formFields = [
@@ -305,6 +304,8 @@ export default function Pictures() {
             <button
               className="bg-blue-500 text-white px-5 py-2 rounded-md hover:bg-blue-600 cursor-pointer"
               onClick={() => toggleModal()}
+              disabled={groups.length === 0}
+              title={groups.length === 0 ? "You need to create a group first" : ""}
             >
               Add Picture
             </button>
@@ -344,31 +345,45 @@ export default function Pictures() {
                         onChange={handleChange}
                         className="mt-1 p-2 border border-gray-300 rounded-md w-full"
                       />
+                      {name === 'backgroundColor' && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Default: White (#FFFFFF)
+                        </p>
+                      )}
                     </div>
                   ))}
                   
                   <div className="mb-4">
-                    <label className="block text-gray-700 mb-2">Assign to Groups:</label>
+                    <label className="block text-gray-700 mb-2">Select a Group <span className="text-red-500">*</span>:</label>
                     <div className="max-h-40 overflow-y-auto p-2 border border-gray-300 rounded-md">
-                      {groups.map(group => (
-                        <div key={group.id} className="flex items-center mb-2">
-                          <input
-                            type="checkbox"
-                            id={`group-${group.id}`}
-                            name="groupIds"
-                            value={group.id}
-                            checked={formData.groupIds.includes(group.id)}
-                            onChange={handleChange}
-                            className="mr-2"
-                          />
-                          <label htmlFor={`group-${group.id}`}>{group.name}</label>
-                        </div>
-                      ))}
+                      {groups.length === 0 ? (
+                        <p className="text-sm text-gray-500">No groups available. Please create a group first.</p>
+                      ) : (
+                        groups.map(group => (
+                          <div key={group.id} className="flex items-center mb-2">
+                            <input
+                              type="radio"
+                              id={`group-${group.id}`}
+                              name="groupId"
+                              value={group.id}
+                              checked={formData.groupId === group.id}
+                              onChange={handleChange}
+                              className="mr-2"
+                              required
+                            />
+                            <label htmlFor={`group-${group.id}`}>{group.name}</label>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                   
                   <div className="flex justify-between space-x-2">
-                    <button type="submit" className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 cursor-pointer">
+                    <button 
+                      type="submit" 
+                      className="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 cursor-pointer"
+                      disabled={groups.length === 0}
+                    >
                       {isEditMode ? 'Update' : 'Save'}
                     </button>
                     <button
@@ -397,7 +412,7 @@ export default function Pictures() {
                   <th className="px-6 py-4 text-left font-semibold">Start Date</th>
                   <th className="px-6 py-4 text-left font-semibold">End Date</th>
                   <th className="px-6 py-4 text-left font-semibold">Background Color</th>
-                  <th className="px-6 py-4 text-left font-semibold">Groups</th>
+                  <th className="px-6 py-4 text-left font-semibold">Group</th>
                   <th className="px-6 py-4 text-left font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -428,14 +443,14 @@ export default function Pictures() {
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2">
                           <div
-                            style={{ width: 20, height: 20, backgroundColor: picture.backgroundColor }}
+                            style={{ width: 20, height: 20, backgroundColor: picture.backgroundColor || DEFAULT_BACKGROUND_COLOR }}
                             className="inline-block rounded-full"
                           ></div>
-                          <div className="ml-1">{picture.backgroundColor}</div>
+                          <div className="ml-1">{picture.backgroundColor || DEFAULT_BACKGROUND_COLOR}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {getAssociatedGroups(picture.id) || 'None'}
+                        {getAssociatedGroup(picture.id)}
                       </td>
                       <td className="px-6 py-4 flex justify-center">
                         <button

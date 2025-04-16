@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link'; // Import Link pour la navigation
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'; // Import de l'icône external link
 
 interface Screen {
   id: string;
@@ -40,6 +42,8 @@ export default function ScreenImages() {
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // État pour le filtrage des images par groupe
+  const [selectedFilterGroup, setSelectedFilterGroup] = useState<string>("all");
 
   const fetchScreens = useCallback(async () => {
     setError(null);
@@ -117,6 +121,7 @@ export default function ScreenImages() {
       pictureId: '',
     });
     setSelectedImage(null);
+    setSelectedFilterGroup("all"); // Réinitialiser le filtre à "tous"
     setIsModalOpen(true);
   };
 
@@ -238,14 +243,34 @@ export default function ScreenImages() {
     return pictures.find(picture => picture.id === pictureId);
   };
 
+  // Obtenir les images associées à un groupe
+  const getPicturesByGroup = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    return group ? group.pictures : [];
+  };
+
   // Filter out images that are already associated with the current screen
+  // and apply group filtering if selected
   const getAvailablePictures = () => {
     if (!selectedScreenId) return pictures;
     
     const currentScreen = screens.find(screen => screen.id === selectedScreenId);
     if (!currentScreen) return pictures;
     
-    return pictures.filter(picture => !currentScreen.lsimg.includes(picture.id));
+    let availablePictures = pictures.filter(picture => !currentScreen.lsimg.includes(picture.id));
+    
+    // Appliquer le filtre par groupe si un groupe spécifique est sélectionné
+    if (selectedFilterGroup !== "all") {
+      const groupPictureIds = getPicturesByGroup(selectedFilterGroup);
+      availablePictures = availablePictures.filter(picture => groupPictureIds.includes(picture.id));
+    }
+    
+    return availablePictures;
+  };
+
+  // Gestionnaire de changement pour le filtre de groupe
+  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedFilterGroup(e.target.value);
   };
 
   return (
@@ -268,9 +293,18 @@ export default function ScreenImages() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               {groupScreens.map((screen) => (
                 <div key={screen.id} className="rounded-lg overflow-hidden shadow-sm border border-gray-200">
-                  <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-                    <h4 className="font-medium text-gray-800">{screen.name}</h4>
-                    <p className="text-xs text-gray-500">ID: {screen.id}</p>
+                  <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <div>
+                      <h4 className="font-medium text-gray-800">{screen.name}</h4>
+                      <p className="text-xs text-gray-500">ID: {screen.id}</p>
+                    </div>
+                    <Link 
+                      href={`/screens/${screen.id}`}
+                      className="inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-md transition-colors duration-200"
+                    >
+                      <span className="mr-1">View</span>
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                    </Link>
                   </div>
 
                   <div className="p-4">
@@ -342,13 +376,35 @@ export default function ScreenImages() {
                 'Add an image to the screen'}
             </h3>
             <form onSubmit={handleSubmit}>
+              {/* Filtre par groupe */}
+              <div className="mb-4">
+                <label htmlFor="group-filter" className="block text-gray-700 font-medium mb-2">
+                  Filter by group:
+                </label>
+                <select
+                  id="group-filter"
+                  value={selectedFilterGroup}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border border-gray-300 rounded-md bg-white"
+                >
+                  <option value="all">All Groups</option>
+                  {groups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Image preview gallery */}
               <div className="mb-4">
                 <h4 className="text-gray-700 font-medium mb-2">Available images:</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 max-h-96 overflow-y-auto p-2 border border-gray-200 rounded-md">
                   {getAvailablePictures().length === 0 ? (
                     <div className="col-span-full text-center py-6 text-gray-500">
-                      No available images found for this screen
+                      {selectedFilterGroup === "all" 
+                        ? "No available images found for this screen" 
+                        : "No available images found in this group for this screen"}
                     </div>
                   ) : (
                     getAvailablePictures().map((picture) => (
