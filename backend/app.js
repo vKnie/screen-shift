@@ -3,12 +3,11 @@ const path = require('path');
 const fs = require('fs');
 const app = express();
 
+// Configuration CORS plus permissive
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma, Expires, If-Modified-Since, If-None-Match, X-API-KEY');
-  res.header('Access-Control-Expose-Headers', 'Content-Range, X-Total-Count, Cache-Control');
-  res.header('Access-Control-Max-Age', '86400');
+  res.header('Access-Control-Allow-Headers', '*');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -16,13 +15,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
-  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.header('Pragma', 'no-cache');
-  res.header('Expires', '0');
-  next();
-});
-
+// Autorisation du cache pour améliorer les performances avec les écrans
+// Suppression des en-têtes qui empêchent la mise en cache
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -35,16 +29,16 @@ app.use('/screens', screensRoutes);
 app.use('/groups', groupsRoutes);
 
 const uploadFolder = path.join(__dirname, 'uploads');
-app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  next();
-}, express.static(uploadFolder));
+app.use('/uploads', express.static(uploadFolder, {
+  // Activation du cache pour les fichiers statiques
+  maxAge: '1d'
+}));
 
+// Gestion d'erreur simplifiée
 app.use((err, req, res, next) => {
   console.error(`Erreur: ${err.message}`);
   res.status(err.status || 500).json({
-    message: err.message,
-    error: process.env.NODE_ENV === 'production' ? {} : err
+    message: "Une erreur est survenue"
   });
 });
 
