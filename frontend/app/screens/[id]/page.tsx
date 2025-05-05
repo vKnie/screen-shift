@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 
+// Types
 interface ScreenData {
   name: string;
   group: string;
@@ -20,17 +21,16 @@ interface PictureData {
   backgroundColor: string;
 }
 
+// Configuration
 const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
-
-// Constantes pour les paramètres configurables
-const TRANSITION_DURATION = 1000; // ms - durée modérée pour éviter les bugs
+const TRANSITION_DURATION = 1000; // ms
 const DEFAULT_DELAY = 5; // secondes
 const REFRESH_INTERVAL = 15 * 1000; // 15 secondes
-const MIN_DISPLAY_TIME = 3000; // Temps minimum d'affichage d'une image
+const MIN_DISPLAY_TIME = 3000; // ms
 
 const ScreenPage = () => {
   const { id } = useParams();
-  const [, setScreenData] = useState<ScreenData | null>(null);
+  const [screenData, setScreenData] = useState<ScreenData | null>(null);
   const [pictures, setPictures] = useState<PictureData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
@@ -38,40 +38,52 @@ const ScreenPage = () => {
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Références pour gérer les timers
-  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const rotationTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Refs
+  const timersRef = useRef<{
+    transition: NodeJS.Timeout | null;
+    rotation: NodeJS.Timeout | null;
+    refresh: NodeJS.Timeout | null;
+  }>({
+    transition: null,
+    rotation: null,
+    refresh: null
+  });
   
-  // Référence pour suivre le dernier changement d'image
   const lastTransitionTimeRef = useRef<number>(Date.now());
+
+  // Nettoyage des timers
+  const clearTimers = useCallback(() => {
+    const { transition, rotation, refresh } = timersRef.current;
+    if (transition) clearTimeout(transition);
+    if (rotation) clearTimeout(rotation);
+    if (refresh) clearInterval(refresh);
+    
+    timersRef.current = {
+      transition: null,
+      rotation: null,
+      refresh: null
+    };
+  }, []);
 
   // Configuration du document
   useEffect(() => {
     setMounted(true);
     
     // Style du document
-    const bodyStyle = document.body.style;
-    const htmlStyle = document.documentElement.style;
-    
-    htmlStyle.overflow = 'hidden';
-    bodyStyle.overflow = 'hidden';
-    bodyStyle.margin = '0';
-    bodyStyle.padding = '0';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
     
     return () => {
       // Nettoyer à la désinstallation
-      htmlStyle.overflow = '';
-      bodyStyle.overflow = '';
-      bodyStyle.margin = '';
-      bodyStyle.padding = '';
-      
-      // Nettoyer tous les timers
-      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-      if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
-      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.margin = '';
+      document.body.style.padding = '';
+      clearTimers();
     };
-  }, []);
+  }, [clearTimers]);
 
   // Fonction pour vérifier la plage de dates
   const isImageInDateRange = useCallback((startDate: string, endDate: string): boolean => {
@@ -81,30 +93,28 @@ const ScreenPage = () => {
       const end = new Date(endDate);
       return today >= start && today <= end;
     } catch (e) {
-      // Gestion des erreurs de format de date
       console.error("Erreur de format de date:", e);
       return false;
     }
   }, []);
 
-  // Fonction pour récupérer les données
+  // Fonction pour récupérer les données avec cache busting optimisé
   const fetchData = useCallback(async () => {
-    if (!id || transitioning) {
-      return;
-    }
+    if (!id || transitioning) return;
     
     try {
       setError(null);
+      const timestamp = Date.now();
+      const cacheHeaders = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      };
       
       // Récupérer les informations de l'écran
-      const timestamp = Date.now();
-      const screenRes = await fetch(`${API_URL}/screens/${id}?nocache=${timestamp}`, {
+      const screenRes = await fetch(`${API_URL}/screens/${id}?t=${timestamp}`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+        headers: cacheHeaders
       });
       
       if (!screenRes.ok) {
@@ -115,43 +125,33 @@ const ScreenPage = () => {
       setScreenData(screenDataResponse);
       
       // Si aucune image associée, terminer
-      if (!screenDataResponse.lsimg || screenDataResponse.lsimg.length === 0) {
+      if (!screenDataResponse.lsimg?.length) {
         setPictures([]);
         return;
       }
       
-      // Récupérer les images - utiliser Promise.allSettled pour gérer les erreurs individuelles
-      const imgPromises = screenDataResponse.lsimg.map(async (imgId: string) => {
-        try {
-          const imgRes = await fetch(`${API_URL}/pictures/${imgId}?nocache=${timestamp}`, {
+      // Récupérer les images en parallèle
+      const imgResults = await Promise.allSettled(
+        screenDataResponse.lsimg.map((imgId: string) => 
+          fetch(`${API_URL}/pictures/${imgId}?t=${timestamp}`, {
             cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
-          });
-          
-          if (!imgRes.ok) {
-            console.warn(`Image ${imgId} non trouvée (${imgRes.status})`);
+            headers: cacheHeaders
+          })
+          .then(res => res.ok ? res.json() : null)
+          .catch(err => {
+            console.warn(`Erreur image ${imgId}:`, err);
             return null;
-          }
-          
-          return await imgRes.json();
-        } catch (error) {
-          console.warn(`Erreur lors de la récupération de l'image ${imgId}:`, error);
-          return null;
-        }
-      });
+          })
+        )
+      );
       
-      const imgResults = await Promise.allSettled(imgPromises);
-      const validResults = imgResults
+      const validImages = imgResults
         .filter((result): result is PromiseFulfilledResult<PictureData | null> => 
           result.status === 'fulfilled' && result.value !== null
         )
         .map(result => result.value as PictureData);
       
-      setPictures(validResults);
+      setPictures(validImages);
       setLastRefresh(Date.now());
       
     } catch (error) {
@@ -162,39 +162,30 @@ const ScreenPage = () => {
 
   // Récupérer les données au chargement initial
   useEffect(() => {
-    if (mounted) {
-      fetchData();
-    }
+    if (mounted) fetchData();
   }, [mounted, fetchData]);
 
-  // Récupérer périodiquement les données
+  // Rafraîchissement périodique des données
   useEffect(() => {
     if (!mounted) return;
     
     const refresh = () => {
-      if (!transitioning) {
-        fetchData();
-      }
+      if (!transitioning) fetchData();
     };
     
-    refreshTimerRef.current = setInterval(refresh, REFRESH_INTERVAL);
+    timersRef.current.refresh = setInterval(refresh, REFRESH_INTERVAL);
     
     return () => {
-      if (refreshTimerRef.current) {
-        clearInterval(refreshTimerRef.current);
-        refreshTimerRef.current = null;
+      if (timersRef.current.refresh) {
+        clearInterval(timersRef.current.refresh);
+        timersRef.current.refresh = null;
       }
     };
   }, [mounted, fetchData, transitioning]);
 
-  // Filtrer les images valides
+  // Filtrer les images valides avec mémoisation
   const validPictures = useMemo(() => {
-    if (!pictures || pictures.length === 0) return [];
-    const filtered = pictures.filter(pic => {
-      if (!pic) return false;
-      return isImageInDateRange(pic.startDate, pic.endDate);
-    });
-    return filtered;
+    return pictures.filter(pic => pic && isImageInDateRange(pic.startDate, pic.endDate));
   }, [pictures, isImageInDateRange]);
   
   // S'assurer que currentIndex est valide
@@ -206,16 +197,14 @@ const ScreenPage = () => {
 
   // Gérer la transition entre les images
   const startTransition = useCallback(() => {
-    // Nettoyer les timers existants pour éviter les collisions
-    if (transitionTimerRef.current) {
-      clearTimeout(transitionTimerRef.current);
-      transitionTimerRef.current = null;
+    // Nettoyer le timer existant
+    if (timersRef.current.transition) {
+      clearTimeout(timersRef.current.transition);
+      timersRef.current.transition = null;
     }
     
     // Vérifier s'il y a des images valides
-    if (validPictures.length <= 1) {
-      return;
-    }
+    if (validPictures.length <= 1) return;
     
     // Vérifier si assez de temps s'est écoulé depuis la dernière transition
     const now = Date.now();
@@ -231,15 +220,15 @@ const ScreenPage = () => {
     // Calculer l'index de la prochaine image
     const nextIndex = (currentIndex + 1) % validPictures.length;
     
-    // Récupérer la couleur de fond de la prochaine image (avec fallback)
+    // Mettre à jour la couleur de fond
     const nextColor = validPictures[nextIndex]?.backgroundColor || '#fff';
     document.body.style.backgroundColor = nextColor;
     
-    // Planifier le changement d'image avec nettoyage approprié
-    transitionTimerRef.current = setTimeout(() => {
+    // Planifier le changement d'image
+    timersRef.current.transition = setTimeout(() => {
       setCurrentIndex(nextIndex);
       setTransitioning(false);
-      transitionTimerRef.current = null;
+      timersRef.current.transition = null;
     }, TRANSITION_DURATION);
     
   }, [validPictures, currentIndex]);
@@ -247,38 +236,33 @@ const ScreenPage = () => {
   // Planifier la rotation des images
   useEffect(() => {
     // Nettoyer le timer existant
-    if (rotationTimerRef.current) {
-      clearTimeout(rotationTimerRef.current);
-      rotationTimerRef.current = null;
+    if (timersRef.current.rotation) {
+      clearTimeout(timersRef.current.rotation);
+      timersRef.current.rotation = null;
     }
     
     // Vérifier les conditions pour démarrer une rotation
-    if (!validPictures.length || transitioning) {
-      return;
-    }
+    if (!validPictures.length || transitioning) return;
     
-    // Obtenir le délai de l'image actuelle avec vérification d'erreurs
+    // Obtenir le délai de l'image actuelle
     const currentPic = validPictures[currentIndex];
     if (!currentPic) return;
     
-    const delayStr = currentPic.delay || String(DEFAULT_DELAY);
-    const delay = parseInt(delayStr, 10);
+    // Calculer le délai avec validation
+    const delay = parseInt(currentPic.delay || String(DEFAULT_DELAY), 10);
     const imageDelay = (isNaN(delay) || delay <= 0) ? DEFAULT_DELAY * 1000 : delay * 1000;
-    
-    // S'assurer d'un délai minimum raisonnable
     const safeDelay = Math.max(imageDelay, MIN_DISPLAY_TIME);
     
     // Planifier la prochaine transition
-    rotationTimerRef.current = setTimeout(() => {
+    timersRef.current.rotation = setTimeout(() => {
       startTransition();
-      rotationTimerRef.current = null;
+      timersRef.current.rotation = null;
     }, safeDelay);
     
-    // Nettoyer le timer lors du démontage ou des changements
     return () => {
-      if (rotationTimerRef.current) {
-        clearTimeout(rotationTimerRef.current);
-        rotationTimerRef.current = null;
+      if (timersRef.current.rotation) {
+        clearTimeout(timersRef.current.rotation);
+        timersRef.current.rotation = null;
       }
     };
   }, [validPictures, currentIndex, transitioning, startTransition]);
@@ -319,8 +303,9 @@ const ScreenPage = () => {
         <Image
           src={`${API_URL}${currentPic.imagePath}`}
           alt="Slide image"
-          layout="fill"
-          objectFit="contain"
+          fill
+          sizes="100vw"
+          style={{ objectFit: 'contain' }}
           priority
           onError={() => console.error(`Erreur de chargement d'image: ${currentPic.imagePath}`)}
         />
