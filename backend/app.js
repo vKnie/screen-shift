@@ -21,34 +21,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configuration CORS pour autoriser les requêtes cross-origin
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', '*');
- 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
+app.use(cors({
+  origin: ['https://195.221.158.77', 'http://195.221.158.77', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
-// Middleware pour parser les données des requêtes
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Ajout des en-têtes de sécurité pour HTTPS
 app.use((req, res, next) => {
-  // Strict-Transport-Security pour forcer les connexions HTTPS
   res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  
-  // Protection contre le clickjacking
   res.header('X-Frame-Options', 'DENY');
-  
-  // Protection contre le sniffing MIME
   res.header('X-Content-Type-Options', 'nosniff');
-  
-  // Protection XSS
   res.header('X-XSS-Protection', '1; mode=block');
   
   next();
@@ -66,13 +52,11 @@ app.use('/pictures', picturesRoutes);
 app.use('/screens', screensRoutes);
 app.use('/groups', groupsRoutes);
 
-// Configuration pour servir les fichiers statiques
 const uploadFolder = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadFolder, {
   maxAge: '1d'
 }));
 
-// Middleware de gestion des erreurs
 app.use((err, req, res, next) => {
   console.error(`Erreur: ${err.message}`);
   res.status(err.status || 500).json({
