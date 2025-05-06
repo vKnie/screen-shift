@@ -13,7 +13,7 @@ interface PictureData {
   backgroundColor: string;
 }
 
-const API_URL = '/api';
+const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
 const TRANSITION_DURATION = 1000;
 const DEFAULT_DELAY = 5;
 const REFRESH_INTERVAL = 15 * 1000; 

@@ -28,7 +28,7 @@ interface FormData {
   pictureId: string;
 }
 
-const API_URL = '/api';
+const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
 
 export default function ScreenImages() {
   const [formData, setFormData] = useState<FormData>({

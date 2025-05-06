@@ -28,7 +28,7 @@ interface FormData {
   groupId: string;
 }
 
-const API_URL = '/api';
+const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
 const DEFAULT_BACKGROUND_COLOR = '#FFFFFF';
 
 export default function Pictures() {
