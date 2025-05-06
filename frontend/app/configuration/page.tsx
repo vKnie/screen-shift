@@ -28,7 +28,7 @@ interface FormData {
   pictureId: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
+const API_URL = '/api';
 
 export default function ScreenImages() {
   const [formData, setFormData] = useState<FormData>({
@@ -121,7 +121,7 @@ export default function ScreenImages() {
       pictureId: '',
     });
     setSelectedImage(null);
-    setSelectedFilterGroup("all"); // Réinitialiser le filtre à "tous"
+    setSelectedFilterGroup("all");
     setIsModalOpen(true);
   };
 
@@ -143,20 +143,17 @@ export default function ScreenImages() {
       return;
     }
 
-    // Find the current screen
     const currentScreen = screens.find(screen => screen.id === formData.screenId);
     if (!currentScreen) {
       setError("Screen not found");
       return;
     }
 
-    // Check if the image is already in the list
     if (currentScreen.lsimg.includes(formData.pictureId)) {
       alert('This image is already associated with this screen');
       return;
     }
 
-    // Create an updated copy of the screen with the new image
     const updatedLsimg = [...currentScreen.lsimg, formData.pictureId];
 
     try {
@@ -211,7 +208,7 @@ export default function ScreenImages() {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      fetchScreens(); // Reload screens after deletion
+      fetchScreens();
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error('Error removing image from screen:', error.message);
@@ -223,13 +220,11 @@ export default function ScreenImages() {
     }
   };
 
-  // Fonction pour obtenir le nom d'un groupe à partir de son id
   const getGroupName = (groupId: string): string => {
     const group = groups.find(g => g.id === groupId);
     return group ? group.name : 'No Group';
   };
 
-  // Regrouper les écrans par groupe en utilisant le nom du groupe plutôt que l'id
   const groupedScreens = screens.reduce((acc, screen) => {
     const groupName = getGroupName(screen.group) || 'No Group';
     if (!acc[groupName]) {
@@ -243,14 +238,11 @@ export default function ScreenImages() {
     return pictures.find(picture => picture.id === pictureId);
   };
 
-  // Obtenir les images associées à un groupe
   const getPicturesByGroup = (groupId: string) => {
     const group = groups.find(g => g.id === groupId);
     return group ? group.pictures : [];
   };
 
-  // Filter out images that are already associated with the current screen
-  // and apply group filtering if selected
   const getAvailablePictures = () => {
     if (!selectedScreenId) return pictures;
     
@@ -259,7 +251,6 @@ export default function ScreenImages() {
     
     let availablePictures = pictures.filter(picture => !currentScreen.lsimg.includes(picture.id));
     
-    // Appliquer le filtre par groupe si un groupe spécifique est sélectionné
     if (selectedFilterGroup !== "all") {
       const groupPictureIds = getPicturesByGroup(selectedFilterGroup);
       availablePictures = availablePictures.filter(picture => groupPictureIds.includes(picture.id));
@@ -268,7 +259,6 @@ export default function ScreenImages() {
     return availablePictures;
   };
 
-  // Gestionnaire de changement pour le filtre de groupe
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedFilterGroup(e.target.value);
   };
@@ -376,7 +366,6 @@ export default function ScreenImages() {
                 'Add an image to the screen'}
             </h3>
             <form onSubmit={handleSubmit}>
-              {/* Filtre par groupe */}
               <div className="mb-4">
                 <label htmlFor="group-filter" className="block text-gray-700 font-medium mb-2">
                   Filter by group:
@@ -396,7 +385,6 @@ export default function ScreenImages() {
                 </select>
               </div>
 
-              {/* Image preview gallery */}
               <div className="mb-4">
                 <h4 className="text-gray-700 font-medium mb-2">Available images:</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 max-h-96 overflow-y-auto p-2 border border-gray-200 rounded-md">

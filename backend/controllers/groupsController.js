@@ -1,11 +1,9 @@
-// groupsController.js
 const path = require('path');
 const { readDataFromFile, writeDataToFile } = require('../utils/fileUtils');
 
 const groupsDataFilePath = path.join(__dirname, '..', 'data', 'groups.json');
 const picturesDataFilePath = path.join(__dirname, '..', 'data', 'pictures.json');
 
-// Récupérer tous les groupes
 exports.getGroups = (req, res) => {
   try {
     const data = readDataFromFile(groupsDataFilePath);
@@ -15,7 +13,6 @@ exports.getGroups = (req, res) => {
   }
 };
 
-// Récupérer un groupe par son ID
 exports.getGroupById = (req, res) => {
   const { id } = req.params;
   try {
@@ -30,7 +27,6 @@ exports.getGroupById = (req, res) => {
   }
 };
 
-// Créer un nouveau groupe
 exports.createGroup = (req, res) => {
   const { name } = req.body;
   
@@ -45,7 +41,7 @@ exports.createGroup = (req, res) => {
     const newGroup = {
       id,
       name,
-      pictures: [] // Tableau pour stocker les IDs des images associées
+      pictures: []
     };
     
     groups.push(newGroup);
@@ -57,7 +53,6 @@ exports.createGroup = (req, res) => {
   }
 };
 
-// Mettre à jour un groupe
 exports.updateGroup = (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
@@ -84,7 +79,6 @@ exports.updateGroup = (req, res) => {
   }
 };
 
-// Supprimer un groupe
 exports.deleteGroup = (req, res) => {
   const { id } = req.params;
   
@@ -105,7 +99,6 @@ exports.deleteGroup = (req, res) => {
   }
 };
 
-// Ajouter une image à un groupe
 exports.addPictureToGroup = (req, res) => {
   const { groupId, pictureId } = req.params;
   
@@ -124,7 +117,6 @@ exports.addPictureToGroup = (req, res) => {
       return res.status(404).json({ message: 'Picture not found' });
     }
     
-    // Vérifier si l'image est déjà dans le groupe
     if (!groups[groupIndex].pictures.includes(pictureId)) {
       groups[groupIndex].pictures.push(pictureId);
       writeDataToFile(groupsDataFilePath, groups);
@@ -139,7 +131,6 @@ exports.addPictureToGroup = (req, res) => {
   }
 };
 
-// Supprimer une image d'un groupe
 exports.removePictureFromGroup = (req, res) => {
   const { groupId, pictureId } = req.params;
   
@@ -163,14 +154,11 @@ exports.removePictureFromGroup = (req, res) => {
   }
 };
 
-// Récupérer toutes les images groupées par groupe
 exports.getPicturesByGroups = (req, res) => {
   try {
     const groups = readDataFromFile(groupsDataFilePath);
     const pictures = readDataFromFile(picturesDataFilePath);
     
-    // Créer un objet où les clés sont les noms des groupes
-    // et les valeurs sont les images associées à chaque groupe
     const picturesByGroups = {};
     
     groups.forEach(group => {
@@ -187,7 +175,6 @@ exports.getPicturesByGroups = (req, res) => {
   }
 };
 
-// Récupérer les images d'un groupe spécifique
 exports.getGroupPictures = (req, res) => {
   const { id } = req.params;
   

@@ -2,36 +2,32 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-// Types pour les groupes
 interface Group {
   id: string;
   name: string;
   pictures: string[];
 }
 
-// Types pour les écrans
 interface Screen {
   id: string;
   name: string;
   group: string;
 }
 
-// Type pour le formulaire d'écran
 interface ScreenFormData {
   name: string;
   group: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
+const API_URL = '/api';
 
 export default function Home() {
-  // États pour les groupes
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
 
-  // États pour les écrans
   const [screens, setScreens] = useState<Screen[]>([]);
   const [screenFormData, setScreenFormData] = useState<ScreenFormData>({
     name: '',
@@ -39,10 +35,8 @@ export default function Home() {
   });
   const [isScreenModalOpen, setIsScreenModalOpen] = useState(false);
 
-  // État d'erreur partagé
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch des groupes
   const fetchGroups = useCallback(async () => {
     setError(null);
     try {
@@ -69,7 +63,6 @@ export default function Home() {
     }
   }, []);
 
-  // Fetch des écrans
   const fetchScreens = useCallback(async () => {
     setError(null);
     try {
@@ -96,13 +89,11 @@ export default function Home() {
     }
   }, []);
 
-  // Charger les données au chargement du composant
   useEffect(() => {
     fetchGroups();
     fetchScreens();
   }, [fetchGroups, fetchScreens]);
 
-  // === Fonctions pour les groupes ===
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -194,7 +185,6 @@ export default function Home() {
     }
   };
 
-  // === Fonctions pour les écrans ===
   const handleScreenInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setScreenFormData((prevData) => ({
@@ -235,7 +225,6 @@ export default function Home() {
       const data = await response.json();
       console.log('Server Response:', data);
       setIsScreenModalOpen(false);
-      // Réinitialiser le formulaire
       setScreenFormData({
         name: '',
         group: '',
@@ -272,9 +261,7 @@ export default function Home() {
     }
   };
 
-  // Initialiser le groupe sélectionné lors de l'ouverture du modal
   const openScreenModal = () => {
-    // Si des groupes existent, sélectionner le premier par défaut
     if (groups.length > 0) {
       setScreenFormData(prev => ({
         ...prev,
@@ -296,7 +283,6 @@ export default function Home() {
       {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mx-4">
-        {/* Section Groupes */}
         <div className="bg-white rounded-lg p-6 shadow-custom">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-800">Groupes</h2>
@@ -308,7 +294,6 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Create Group Modal */}
           {isGroupModalOpen && (
             <div className="fixed inset-0 flex justify-center items-center z-50">
               <div className="absolute inset-0 backdrop-blur-md z-10"></div>
@@ -345,7 +330,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Edit Group Modal */}
           {editingGroup && (
             <div className="fixed inset-0 flex justify-center items-center z-50">
               <div className="absolute inset-0 backdrop-blur-md z-10"></div>
@@ -425,7 +409,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Section Écrans */}
         <div className="bg-white rounded-lg p-6 shadow-custom">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-800">Screens</h2>
@@ -445,7 +428,6 @@ export default function Home() {
               <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg z-20">
                 <h3 className="text-xl font-semibold mb-4">Add a New Screen</h3>
                 <form onSubmit={handleScreenSubmit}>
-                  {/* Champ pour le nom */}
                   <div className="mb-4">
                     <label className="block text-gray-700">Name:</label>
                     <input
@@ -458,7 +440,6 @@ export default function Home() {
                     />
                   </div>
                   
-                  {/* Liste déroulante pour le groupe */}
                   <div className="mb-4">
                     <label className="block text-gray-700">Group:</label>
                     <select

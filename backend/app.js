@@ -3,22 +3,36 @@ const path = require('path');
 const fs = require('fs');
 const app = express();
 
-// Configuration CORS plus permissive
+app.use((req, res, next) => {
+  const ip = req.ip || 
+             req.headers['x-forwarded-for'] || 
+             req.connection.remoteAddress || 
+             req.socket.remoteAddress;
+  
+  const method = req.method;
+  const url = req.originalUrl || req.url;
+  
+  console.log(`[${new Date().toISOString()}] IP: ${ip} | ${method} ${url}`);
+  next();
+});
+
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', '*');
-  
+ 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   next();
 });
 
-// Autorisation du cache pour améliorer les performances avec les écrans
-// Suppression des en-têtes qui empêchent la mise en cache
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+const errorRoutes = require('./routes/errorRoutes');
+app.use('/errors', errorRoutes);
 
 const picturesRoutes = require('./routes/picturesRoutes');
 const screensRoutes = require('./routes/screensRoutes');
@@ -30,11 +44,9 @@ app.use('/groups', groupsRoutes);
 
 const uploadFolder = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadFolder, {
-  // Activation du cache pour les fichiers statiques
   maxAge: '1d'
 }));
 
-// Gestion d'erreur simplifiée
 app.use((err, req, res, next) => {
   console.error(`Erreur: ${err.message}`);
   res.status(err.status || 500).json({

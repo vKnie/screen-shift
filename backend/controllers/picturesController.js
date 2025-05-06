@@ -47,12 +47,10 @@ exports.uploadPicture = (req, res) => {
       backgroundColor,
     };
     
-    // Enregistrer l'image
     const currentData = readDataFromFile(picturesDataFilePath);
     currentData.push(imageData);
     writeDataToFile(picturesDataFilePath, currentData);
     
-    // Si des groupes sont spécifiés, ajouter l'image à ces groupes
     if (groups) {
       const groupIds = JSON.parse(groups);
       const groupsData = readDataFromFile(groupsDataFilePath);
@@ -90,7 +88,6 @@ exports.deletePicture = (req, res) => {
       return res.status(404).json({ message: 'Picture not found' });
     }
     
-    // Supprimer l'image de tous les groupes
     const groupsData = readDataFromFile(groupsDataFilePath);
     const groupsUpdated = [];
     
@@ -103,19 +100,30 @@ exports.deletePicture = (req, res) => {
     
     writeDataToFile(groupsDataFilePath, groupsData);
     
-    // Supprimer le fichier physique
+    const screensData = readDataFromFile(screensDataFilePath);
+    const screensUpdated = [];
+    
+    screensData.forEach(screen => {
+      if (screen.lsimg && screen.lsimg.includes(id)) {
+        screensUpdated.push(screen.id);
+        screen.lsimg = screen.lsimg.filter(picId => picId !== id);
+      }
+    });
+    
+    writeDataToFile(screensDataFilePath, screensData);
+    
     const filePath = path.join(__dirname, '..', pictureToDelete.imagePath);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
     
-    // Supprimer l'entrée dans pictures.json
     picturesData = picturesData.filter(picture => picture.id !== id);
     writeDataToFile(picturesDataFilePath, picturesData);
     
     res.status(200).json({
       message: 'Picture deleted successfully',
-      updatedGroups: groupsUpdated
+      updatedGroups: groupsUpdated,
+      updatedScreens: screensUpdated
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -154,19 +162,16 @@ exports.updatePicture = (req, res) => {
     picturesData[pictureIndex] = updatedPicture;
     writeDataToFile(picturesDataFilePath, picturesData);
     
-    // Mettre à jour les associations de groupes si nécessaire
     if (groups) {
       const groupIds = JSON.parse(groups);
       const groupsData = readDataFromFile(groupsDataFilePath);
       
-      // Supprimer l'image de tous les groupes
       groupsData.forEach(group => {
         if (group.pictures) {
           group.pictures = group.pictures.filter(picId => picId !== id);
         }
       });
       
-      // Ajouter l'image aux groupes sélectionnés
       groupIds.forEach(groupId => {
         const groupIndex = groupsData.findIndex(g => g.id === groupId);
         if (groupIndex !== -1) {

@@ -25,11 +25,11 @@ interface FormData {
   startDate: string;
   endDate: string;
   backgroundColor: string;
-  groupId: string; // Un seul ID de groupe au lieu d'un tableau
+  groupId: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL;
-const DEFAULT_BACKGROUND_COLOR = '#FFFFFF'; // Couleur blanche par défaut
+const API_URL = '/api';
+const DEFAULT_BACKGROUND_COLOR = '#FFFFFF';
 
 export default function Pictures() {
   const [formData, setFormData] = useState<FormData>({
@@ -37,8 +37,8 @@ export default function Pictures() {
     delay: 0,
     startDate: '',
     endDate: '',
-    backgroundColor: DEFAULT_BACKGROUND_COLOR, // Initialiser avec la couleur par défaut
-    groupId: '', // Un seul groupe
+    backgroundColor: DEFAULT_BACKGROUND_COLOR, 
+    groupId: '',
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -49,7 +49,6 @@ export default function Pictures() {
   const [error, setError] = useState<string | null>(null);
   const [picturesByGroup, setPicturesByGroup] = useState<{[key: string]: Picture[]}>({});
 
-  // Récupérer les images
   const fetchPictures = useCallback(async () => {
     setError(null);
     try {
@@ -76,7 +75,6 @@ export default function Pictures() {
     }
   }, []);
 
-  // Récupérer les groupes
   const fetchGroups = useCallback(async () => {
     setError(null);
     try {
@@ -88,7 +86,6 @@ export default function Pictures() {
       const data = await response.json();
       setGroups(data);
       
-      // Si nous avons des groupes et qu'aucun groupe n'est sélectionné, choisir le premier par défaut
       if (data.length > 0 && !formData.groupId) {
         setFormData(prev => ({ ...prev, groupId: data[0].id }));
       }
@@ -103,7 +100,6 @@ export default function Pictures() {
     }
   }, [formData.groupId]);
 
-  // Récupérer les images groupées par groupe
   const fetchPicturesByGroups = useCallback(async () => {
     setError(null);
     try {
@@ -165,14 +161,11 @@ export default function Pictures() {
     formDataToSend.append('delay', String(formData.delay || ''));
     formDataToSend.append('startDate', formData.startDate || '');
     formDataToSend.append('endDate', formData.endDate || '');
-    // Utiliser la couleur par défaut si aucune couleur n'est sélectionnée
     formDataToSend.append('backgroundColor', formData.backgroundColor || DEFAULT_BACKGROUND_COLOR);
-    // Envoyer un tableau avec un seul élément pour la compatibilité avec l'API
     formDataToSend.append('groups', JSON.stringify([formData.groupId]));
 
     try {
       if (isEditMode && editingPictureId) {
-        // Update existing picture
         const response = await fetch(`${API_URL}/pictures/${editingPictureId}`, {
           method: 'PUT',
           body: formDataToSend,
@@ -180,7 +173,6 @@ export default function Pictures() {
         const data = await response.json();
         console.log('Server Response (Edit):', data);
       } else {
-        // Create new picture
         const response = await fetch(`${API_URL}/pictures/upload`, {
           method: 'POST',
           body: formDataToSend,
@@ -212,14 +204,13 @@ export default function Pictures() {
       delay: 0,
       startDate: '',
       endDate: '',
-      backgroundColor: DEFAULT_BACKGROUND_COLOR, // Réinitialiser avec la couleur par défaut
-      groupId: groups.length > 0 ? groups[0].id : '', // Sélectionner le premier groupe par défaut s'il existe
+      backgroundColor: DEFAULT_BACKGROUND_COLOR,
+      groupId: groups.length > 0 ? groups[0].id : '',
     });
   };
 
   const toggleModal = (edit = false, picture?: Picture) => {
     if (edit && picture) {
-      // Trouver le premier groupe associé à cette image (nous ne prenons que le premier maintenant)
       const associatedGroups = groups.filter(group => group.pictures && group.pictures.includes(picture.id));
       const firstAssociatedGroup = associatedGroups.length > 0 ? associatedGroups[0].id : '';
       
@@ -262,7 +253,6 @@ export default function Pictures() {
     }
   };
 
-  // Obtenir les images à afficher selon le groupe sélectionné
   const getFilteredPictures = () => {
     if (selectedGroup === 'all') {
       return pictures;
@@ -271,11 +261,9 @@ export default function Pictures() {
     const group = groups.find(g => g.id === selectedGroup);
     if (!group) return [];
     
-    // Retourner les images de ce groupe depuis le picturesByGroup
     return picturesByGroup[group.name] || [];
   };
 
-  // Obtenir le groupe associé à une image (maintenant nous ne prenons que le premier)
   const getAssociatedGroup = (pictureId: string) => {
     const associatedGroups = groups.filter(group => group.pictures && group.pictures.includes(pictureId));
     return associatedGroups.length > 0 ? associatedGroups[0].name : 'None';
