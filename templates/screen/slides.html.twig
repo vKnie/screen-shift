@@ -1,0 +1,30 @@
+{# templates/screen/slides.html.twig #}
+{# Template pour générer dynamiquement les slides via AJAX #}
+
+{% if pictures is not empty %}
+    {% set sortedPictures = pictures|sort((a, b) => a.position <=> b.position) %}
+    {% for picture in sortedPictures %}
+        {% if picture.imageName %}
+            <div class="slide{% if loop.first %} active{% endif %}" 
+                 data-delay="{{ picture.delay|default(5)|abs }}"
+                 data-bg-color="{{ picture.backgroundColor|default('#000000')|e('html_attr') }}"
+                 data-position="{{ picture.position|default(0)|abs }}"
+                 data-image-id="{{ picture.id }}"
+                 style="background-color: {{ picture.backgroundColor|default('#000000')|e('css') }};">
+                
+                <img src="{{ asset('uploads/pictures/' ~ picture.imageName|e('url')) }}" 
+                     alt="{{ picture.name|default('Image du diaporama')|e('html_attr') }}"
+                     onload="console.log('Image chargée: {{ picture.imageName|e('js') }}');"
+                     onerror="this.style.display='none'; console.error('Erreur image: {{ picture.imageName|e('js') }}'); if(this.parentElement) this.parentElement.style.display='none';">
+            </div>
+        {% endif %}
+    {% endfor %}
+{% else %}
+    <div class="slide active" 
+         style="background-color: #000000;">
+        <div style="text-align: center; color: white;">
+            <h3 style="margin-bottom: 1rem; font-size: 2rem;">Aucune image à afficher</h3>
+            <p style="margin: 0; font-size: 1.2rem;">Veuillez ajouter des images à ce diaporama</p>
+        </div>
+    </div>
+{% endif %}

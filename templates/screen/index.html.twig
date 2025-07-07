@@ -1,0 +1,51 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+    <h1>Liste des screens</h1>
+    <hr>
+    
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+   
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+    
+    <a href="{{ path('create_screen') }}" class="btn btn-success mb-3">Créer un screen</a>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Groupe</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for screen in screens %}
+                <tr>
+                    <td>{{ screen.id }}</td>
+                    <td>{{ screen.name }}</td>
+                    <td>{{ screen.groupeScreen.name }}</td>
+                    <td>
+                        <a href="{{ path('edit_screen', {id: screen.id}) }}" class="btn btn-primary btn-sm">Modifier</a>
+                        <form method="post" action="{{ path('delete_screen', {id: screen.id}) }}" style="display:inline-block;">
+                            <button class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce screen ?')">Supprimer</button>
+                        </form>
+                        <a href="{{ path('screen_show', {id: screen.id}) }}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm">Affichage</a>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="4">Aucun screen trouvé.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

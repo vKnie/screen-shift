@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erreur - Screen {{ screenId }}</title>
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .error-content {
+            text-align: center;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-content">
+        <h1>⚠️ Erreur</h1>
+        <p>{{ message }}</p>
+        <p><small>Screen ID: {{ screenId }}</small></p>
+        <p><small>{{ "now"|date("Y-m-d H:i:s") }}</small></p>
+    </div>
+    
+    <script>
+        // Tentative de rechargement automatique après 30 secondes
+        setTimeout(function() {
+            window.location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>

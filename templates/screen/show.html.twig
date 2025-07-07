@@ -1,0 +1,520 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ screen.name }}{% endblock %}
+{% block body %}
+    <style>
+        /* CSS optimisé pour MagicInfo Server */
+        .slide {
+            transition: opacity 2s ease-in-out;
+            opacity: 0;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .slide.active {
+            opacity: 1;
+        }
+        
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        body, #slideshow-wrapper {
+            transition: background-color 2s ease-in-out;
+        }
+        
+        .progress-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: white;
+            opacity: 0.25;
+            transition: opacity 0.3s ease;
+            display: inline-block;
+            margin: 0 4px;
+        }
+        
+        .progress-dot.active {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 2s linear infinite;
+        }
+    </style>
+
+    <!-- Conteneur principal -->
+    <div id="slideshow-wrapper" 
+         style="position: fixed; top: 0; left: 0; width: 100%; height: 100vh; overflow: hidden; background-color: #000000;"
+         data-screen-id="{{ screen.id }}">
+        
+        <!-- Container slides -->
+        <div id="slideshow-container" 
+             style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+            {% if pictures is not empty %}
+                {% set sortedPictures = pictures|sort((a, b) => a.position <=> b.position) %}
+                {% for picture in sortedPictures %}
+                    {% if picture.imageName %}
+                        <div class="slide{% if loop.first %} active{% endif %}" 
+                             data-delay="{{ picture.delay|default(5)|abs }}"
+                             data-bg-color="{{ picture.backgroundColor|default('#000000')|e('html_attr') }}"
+                             data-position="{{ picture.position|default(0)|abs }}"
+                             data-image-id="{{ picture.id }}"
+                             style="background-color: {{ picture.backgroundColor|default('#000000')|e('css') }};">
+                            
+                            <img src="{{ asset('uploads/pictures/' ~ picture.imageName|e('url')) }}" 
+                                 alt="{{ picture.name|default('Image du diaporama')|e('html_attr') }}"
+                                 onload="console.log('Image chargée: {{ picture.imageName|e('js') }}');"
+                                 onerror="this.style.display='none'; console.error('Erreur image: {{ picture.imageName|e('js') }}'); this.parentElement.style.display='none';">
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="slide active" 
+                     style="background-color: #000000;">
+                    <div style="text-align: center; color: white;">
+                        <h3 style="margin-bottom: 1rem; font-size: 2rem;">Aucune image à afficher</h3>
+                        <p style="margin: 0; font-size: 1.2rem;">Veuillez ajouter des images à ce diaporama</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Progress dots -->
+        <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);">
+            <div id="progress-dots" style="display: flex; gap: 8px;"></div>
+        </div>
+        
+        <!-- Spinner de chargement -->
+        <div id="loading-spinner" 
+             style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none;">
+            <div class="spinner"></div>
+        </div>
+        
+        <!-- Panel de debug -->
+        <div id="debug-panel" 
+             style="position: fixed; top: 10px; left: 10px; padding: 15px; background-color: rgba(0,0,0,0.9); color: white; font-size: 12px; border-radius: 8px; display: none; font-family: monospace; z-index: 1000;">
+            <div style="margin-bottom: 8px;"><strong>🐛 DEBUG MODE</strong></div>
+            <div>Slide: <span id="debug-slide">-</span>/<span id="debug-total">-</span></div>
+            <div>Délai: <span id="debug-delay">-</span>s</div>
+            <div>Couleur: <span id="debug-color">-</span></div>
+            <div>État: <span id="debug-state">-</span></div>
+            <div>Image ID: <span id="debug-image-id">-</span></div>
+            <div>Prochaine: <span id="debug-next">-</span>s</div>
+            <hr style="margin: 8px 0; border-color: #444;">
+            <div style="font-size: 10px;">
+                <div>Retry: <span id="debug-retry">0</span>/3</div>
+                <div>Actif: <span id="debug-active">true</span></div>
+                <div>Transition: <span id="debug-transition">false</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript ES5 compatible MagicInfo Server
+        function Slideshow(screenId) {
+            var self = this;
+            this.screenId = screenId;
+            this.slides = [];
+            this.currentSlide = 0;
+            this.timeoutId = null;
+            this.isActive = true;
+            this.isTransitioning = false;
+            this.retryCount = 0;
+            this.maxRetries = 3;
+            this.nextSlideTime = 0;
+            
+            // Mode développement
+            this.debugMode = window.location.search.indexOf('debug=1') > -1 || 
+                            (window.localStorage && window.localStorage.getItem('slideshow_debug') === '1');
+            
+            this.wrapper = document.getElementById('slideshow-wrapper');
+            this.progressDots = document.getElementById('progress-dots');
+            this.loadingSpinner = document.getElementById('loading-spinner');
+            this.debugPanel = document.getElementById('debug-panel');
+            
+            this.init();
+            this.startPolling();
+            this.setupVisibilityHandling();
+            this.setupDebugMode();
+        }
+
+        Slideshow.prototype.init = function() {
+            this.updateSlides();
+            this.createProgressDots();
+            
+            if (this.slides.length > 0) {
+                this.showSlide(0);
+                this.scheduleNext();
+            } else {
+                console.warn('Aucune slide trouvée');
+            }
+        };
+
+        Slideshow.prototype.updateSlides = function() {
+            this.slides = document.querySelectorAll('.slide');
+        };
+
+        Slideshow.prototype.createProgressDots = function() {
+            this.progressDots.innerHTML = '';
+            for (var i = 0; i < this.slides.length; i++) {
+                var dot = document.createElement('div');
+                dot.className = 'progress-dot' + (i === 0 ? ' active' : '');
+                this.progressDots.appendChild(dot);
+            }
+        };
+
+        Slideshow.prototype.updateProgressDots = function() {
+            var dots = this.progressDots.children;
+            for (var i = 0; i < dots.length; i++) {
+                var dot = dots[i];
+                if (i === this.currentSlide) {
+                    dot.className = 'progress-dot active';
+                } else {
+                    dot.className = 'progress-dot';
+                }
+            }
+        };
+
+        Slideshow.prototype.showSlide = function(index) {
+            if (index < 0 || index >= this.slides.length || this.isTransitioning) return;
+
+            var self = this;
+            this.isTransitioning = true;
+            console.log('Affichage slide ' + index);
+
+            // Récupérer la couleur de fond (compatible anciens navigateurs)
+            var newSlide = this.slides[index];
+            var bgColor = '#000000';
+            if (newSlide.getAttribute) {
+                bgColor = newSlide.getAttribute('data-bg-color') || '#000000';
+            }
+            
+            console.log('Couleur de fond pour slide ' + index + ': ' + bgColor);
+
+            // Masquer toutes les slides
+            for (var i = 0; i < this.slides.length; i++) {
+                this.slides[i].className = this.slides[i].className.replace(' active', '');
+            }
+
+            // Changer les couleurs de fond
+            this.wrapper.style.backgroundColor = bgColor;
+            document.body.style.backgroundColor = bgColor;
+
+            // Attendre et afficher la nouvelle slide
+            setTimeout(function() {
+                newSlide.className += ' active';
+                self.updateProgressDots();
+                self.updateDebugInfo();
+                
+                // Finir la transition
+                setTimeout(function() {
+                    self.isTransitioning = false;
+                    self.updateDebugInfo();
+                }, 2000);
+            }, 300);
+        };
+
+        Slideshow.prototype.scheduleNext = function() {
+            if (this.slides.length === 0) return;
+            
+            var self = this;
+            var currentSlideEl = this.slides[this.currentSlide];
+            var delay = 5; // Défaut
+            
+            if (currentSlideEl && currentSlideEl.getAttribute) {
+                delay = parseInt(currentSlideEl.getAttribute('data-delay')) || 5;
+            }
+            
+            delay = Math.max(1, Math.min(60, delay)) * 1000;
+            this.nextSlideTime = Date.now() + delay;
+            
+            this.timeoutId = setTimeout(function() {
+                if (self.isActive && !self.isTransitioning) {
+                    self.currentSlide = (self.currentSlide + 1) % self.slides.length;
+                    self.showSlide(self.currentSlide);
+                    self.scheduleNext();
+                }
+            }, delay);
+        };
+
+        Slideshow.prototype.restart = function() {
+            var self = this;
+            this.showSpinner();
+            
+            if (this.timeoutId) {
+                clearTimeout(this.timeoutId);
+                this.timeoutId = null;
+            }
+            
+            this.isTransitioning = false;
+            this.currentSlide = 0;
+            this.updateSlides();
+            this.createProgressDots();
+            
+            setTimeout(function() {
+                if (self.slides.length > 0) {
+                    self.showSlide(0);
+                    self.scheduleNext();
+                }
+                self.hideSpinner();
+            }, 500);
+        };
+
+        Slideshow.prototype.showSpinner = function() {
+            if (this.loadingSpinner) {
+                this.loadingSpinner.style.display = 'block';
+            }
+        };
+
+        Slideshow.prototype.hideSpinner = function() {
+            if (this.loadingSpinner) {
+                this.loadingSpinner.style.display = 'none';
+            }
+        };
+
+        Slideshow.prototype.setupVisibilityHandling = function() {
+            var self = this;
+            
+            // Support pour les anciens navigateurs
+            var hidden, visibilityChange;
+            if (typeof document.hidden !== "undefined") {
+                hidden = "hidden";
+                visibilityChange = "visibilitychange";
+            } else if (typeof document.msHidden !== "undefined") {
+                hidden = "msHidden";
+                visibilityChange = "msvisibilitychange";
+            } else if (typeof document.webkitHidden !== "undefined") {
+                hidden = "webkitHidden";
+                visibilityChange = "webkitvisibilitychange";
+            }
+
+            if (visibilityChange) {
+                document.addEventListener(visibilityChange, function() {
+                    if (document[hidden]) {
+                        self.isActive = false;
+                        if (self.timeoutId) {
+                            clearTimeout(self.timeoutId);
+                            self.timeoutId = null;
+                        }
+                    } else {
+                        self.isActive = true;
+                        if (!self.isTransitioning) {
+                            self.scheduleNext();
+                        }
+                    }
+                });
+            }
+        };
+
+        Slideshow.prototype.setupDebugMode = function() {
+            var self = this;
+            if (this.debugMode && this.debugPanel) {
+                this.debugPanel.style.display = 'block';
+                this.updateDebugInfo();
+                
+                // Démarrer l'update du debug
+                setInterval(function() {
+                    if (self.debugMode) {
+                        self.updateDebugInfo();
+                    }
+                }, 1000);
+                
+                // Toggle debug avec Ctrl+D
+                document.addEventListener('keydown', function(e) {
+                    if (e.ctrlKey && e.key === 'd') {
+                        e.preventDefault();
+                        self.toggleDebug();
+                    }
+                });
+            }
+        };
+
+        Slideshow.prototype.toggleDebug = function() {
+            this.debugMode = !this.debugMode;
+            if (window.localStorage) {
+                window.localStorage.setItem('slideshow_debug', this.debugMode ? '1' : '0');
+            }
+            this.debugPanel.style.display = this.debugMode ? 'block' : 'none';
+            if (this.debugMode) this.updateDebugInfo();
+        };
+
+        Slideshow.prototype.updateDebugInfo = function() {
+            if (!this.debugMode || !this.debugPanel) return;
+            
+            var currentSlideEl = this.slides[this.currentSlide];
+            var remainingTime = this.nextSlideTime > 0 ? Math.max(0, Math.ceil((this.nextSlideTime - Date.now()) / 1000)) : 0;
+            
+            var elements = {
+                'debug-slide': (this.currentSlide + 1).toString(),
+                'debug-total': this.slides.length.toString(),
+                'debug-delay': currentSlideEl ? (currentSlideEl.getAttribute('data-delay') || '5') : '-',
+                'debug-color': currentSlideEl ? (currentSlideEl.getAttribute('data-bg-color') || '#000000') : '-',
+                'debug-state': this.isTransitioning ? 'Transition' : 'Affichage',
+                'debug-image-id': currentSlideEl ? (currentSlideEl.getAttribute('data-image-id') || '-') : '-',
+                'debug-next': remainingTime.toString(),
+                'debug-retry': this.retryCount.toString(),
+                'debug-active': this.isActive.toString(),
+                'debug-transition': this.isTransitioning.toString()
+            };
+            
+            for (var id in elements) {
+                var el = document.getElementById(id);
+                if (el) {
+                    el.textContent = elements[id];
+                }
+            }
+        };
+
+        Slideshow.prototype.startPolling = function() {
+            var self = this;
+            setInterval(function() {
+                if (!self.isActive) return;
+
+                try {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', '/screen/' + self.screenId + '/check-updates', true);
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState === 4) {
+                            if (xhr.status === 200) {
+                                try {
+                                    var data = JSON.parse(xhr.responseText);
+                                    if (data.hasUpdates) {
+                                        self.loadNewSlides();
+                                    }
+                                    self.retryCount = 0;
+                                } catch (error) {
+                                    console.error('Erreur parsing JSON:', error);
+                                }
+                            } else {
+                                console.error('Erreur polling:', xhr.status);
+                                if (++self.retryCount >= self.maxRetries) {
+                                    console.error('Connexion interrompue');
+                                }
+                            }
+                        }
+                    };
+                    
+                    xhr.send();
+                } catch (error) {
+                    console.error('Erreur polling:', error);
+                }
+            }, 5000);
+        };
+
+        Slideshow.prototype.loadNewSlides = function() {
+            var self = this;
+            
+            try {
+                this.showSpinner();
+                
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/screen/' + this.screenId + '/get-slides', true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try {
+                                var html = xhr.responseText;
+                                document.getElementById('slideshow-container').innerHTML = html;
+                                self.fixImageStyling();
+                                self.restart();
+                                console.log('Diaporama mis à jour');
+                            } catch (error) {
+                                console.error('Erreur traitement réponse:', error);
+                                self.hideSpinner();
+                            }
+                        } else {
+                            console.error('Erreur chargement:', xhr.status);
+                            self.hideSpinner();
+                        }
+                    }
+                };
+                
+                xhr.send();
+            } catch (error) {
+                console.error('Erreur loadNewSlides:', error);
+                this.hideSpinner();
+            }
+        };
+
+        Slideshow.prototype.fixImageStyling = function() {
+            try {
+                var images = document.querySelectorAll('.slide img');
+                for (var i = 0; i < images.length; i++) {
+                    var img = images[i];
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'contain';
+                    
+                    img.onerror = function() {
+                        this.style.display = 'none';
+                        console.error('Erreur de chargement image:', this.src);
+                        if (this.parentElement) {
+                            this.parentElement.style.display = 'none';
+                        }
+                    };
+                }
+                
+                var slides = document.querySelectorAll('.slide');
+                for (var j = 0; j < slides.length; j++) {
+                    var slide = slides[j];
+                    slide.className = slide.className.replace(' active', '');
+                    if (j === 0) {
+                        slide.className += ' active';
+                    }
+                }
+                
+                console.log('Styling corrigé pour ' + images.length + ' images et ' + slides.length + ' slides');
+            } catch (error) {
+                console.error('Erreur fixImageStyling:', error);
+            }
+        };
+
+        // Initialisation sécurisée
+        function initSlideshow() {
+            try {
+                var wrapper = document.getElementById('slideshow-wrapper');
+                if (wrapper) {
+                    var screenId = wrapper.getAttribute('data-screen-id');
+                    if (screenId) {
+                        new Slideshow(parseInt(screenId));
+                        console.log('Slideshow initialisé pour screen ID:', screenId);
+                    } else {
+                        console.error('Screen ID non trouvé');
+                    }
+                } else {
+                    console.error('Wrapper slideshow non trouvé');
+                }
+            } catch (error) {
+                console.error('Erreur initialisation slideshow:', error);
+            }
+        }
+
+        // Initialisation au chargement de la page
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSlideshow);
+        } else {
+            initSlideshow();
+        }
+    </script>
+{% endblock %}

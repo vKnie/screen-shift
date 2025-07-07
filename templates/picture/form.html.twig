@@ -1,0 +1,58 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+    <h1>{{ edit is defined ? 'Modifier une image' : 'Créer une image' }}</h1>
+    <hr>
+    
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+   
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+    
+    {{ form_start(form) }}
+        <div class="mb-3">
+            {{ form_label(form.delay) }}
+            {{ form_widget(form.delay, {'attr': {'class': 'form-control'}}) }}
+            {{ form_errors(form.delay) }}
+        </div>
+        <div class="mb-3">
+            {{ form_label(form.startDate) }}
+            {{ form_widget(form.startDate, {'attr': {'class': 'form-control'}}) }}
+            {{ form_errors(form.startDate) }}
+        </div>
+        <div class="mb-3">
+            {{ form_label(form.endDate) }}
+            {{ form_widget(form.endDate, {'attr': {'class': 'form-control'}}) }}
+            {{ form_errors(form.endDate) }}
+        </div>
+        <div class="mb-3">
+            {{ form_label(form.backgroundColor) }}
+            <div class="d-flex align-items-center gap-3">
+                {{ form_widget(form.backgroundColor, {'attr': {'id': 'color-picker'}}) }}
+            </div>
+            {{ form_errors(form.backgroundColor) }}
+        </div>
+        <div class="mb-3">
+            {{ form_label(form.imageFile) }}
+            {{ form_widget(form.imageFile, {'attr': {'class': 'form-control'}}) }}
+            {{ form_errors(form.imageFile) }}
+        </div>
+        <div class="mb-3">
+            {{ form_label(form.screenPicture) }}
+            {{ form_widget(form.screenPicture, {'attr': {'class': 'form-select'}}) }}
+            {{ form_errors(form.screenPicture) }}
+        </div>
+        <button type="submit" class="btn btn-primary">
+            {{ edit is defined ? 'Mettre à jour' : 'Créer' }}
+        </button>
+        <a href="{{ path('app_picture') }}" class="btn btn-secondary">Retour</a>
+    {{ form_end(form) }}
+{% endblock %}

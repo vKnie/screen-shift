@@ -1,0 +1,68 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <h1>Liste des images</h1>
+    <hr>
+   
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+   
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+   
+    <a href="{{ path('create_picture') }}" class="btn btn-success mb-3">Ajouter une image</a>
+    
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Délai</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Image</th>
+                <th>Screen</th>
+                <th>Groupe</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for picture in pictures %}
+                <tr>
+                    <td>{{ picture.id }}</td>
+                    <td>{{ picture.delay }} sec</td>
+                    <td>{{ picture.startDate ? picture.startDate|date('d/m/Y') : '-' }}</td>
+                    <td>{{ picture.endDate ? picture.endDate|date('d/m/Y') : '-' }}</td>
+                    <td>
+                        {% if picture.imageName %}
+                            <img src="{{ asset('uploads/pictures/' ~ picture.imageName) }}" 
+                                 style="max-height: 50px; max-width: 60px; object-fit: cover;" 
+                                 alt="Image">
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ picture.screenPicture ? picture.screenPicture.name : 'N/A' }}</td>
+                    <td>{{ picture.screenPicture and picture.screenPicture.groupeScreen ? picture.screenPicture.groupeScreen.name : 'N/A' }}</td>
+                    <td>
+                        <a href="{{ path('edit_picture', {id: picture.id}) }}" class="btn btn-primary btn-sm">Modifier</a>
+                        <form method="post" action="{{ path('delete_picture', {id: picture.id}) }}" style="display:inline-block;">
+                            <button class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette image ?')">Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="8">Aucune image trouvée.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

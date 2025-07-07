@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+    <h1>{{ edit is defined ? 'Modifier un screen' : 'Créer un screen' }}</h1>
+    <hr>
+    
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+   
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+   
+    {{ form_start(form) }}
+        <div class="mb-3">
+            {{ form_label(form.name, null, {'label_attr': {'class': 'form-label'}}) }}
+            {{ form_widget(form.name, {'attr': {'class': 'form-control'}}) }}
+            {{ form_errors(form.name) }}
+        </div>
+       
+        <div class="mb-3">
+            {{ form_label(form.groupeScreen, null, {'label_attr': {'class': 'form-label'}}) }}
+           
+            <select name="{{ form.groupeScreen.vars.full_name }}" class="form-select" id="{{ form.groupeScreen.vars.id }}">
+                {% for choice in form.groupeScreen.vars.choices %}
+                    <option value="{{ choice.value }}"
+                            {% if choice.value == form.groupeScreen.vars.value %}selected{% endif %}>
+                        {{ choice.label }}
+                        {% if choice.data.role %}
+                            <span class="text-muted">({{ choice.data.role }})</span>
+                        {% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+           
+            {{ form_errors(form.groupeScreen) }}
+        </div>
+       
+        <button type="submit" class="btn btn-primary">
+            {{ edit is defined ? 'Mettre à jour' : 'Créer' }}
+        </button>
+       
+        {% do form.groupeScreen.setRendered %}
+       
+    {{ form_end(form) }}
+{% endblock %}

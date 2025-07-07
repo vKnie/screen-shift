@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+{% block title %}Liste des utilisateurs{% endblock %}
+{% block body %}
+    <h1>Liste des utilisateurs</h1>
+    <hr>
+   
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+   
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+    <div class="mb-3">
+        <a href="{{ path('app_register') }}" class="btn btn-success">Ajouter un utilisateur</a>
+    </div>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Rôles</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        {% for role in user.roles %}
+                            {% if role == 'ROLE_ADMIN' %}
+                                <span class="badge bg-danger me-1">{{ role }}</span>
+                            {% elseif role == 'ROLE_USER' %}
+                                <span class="badge bg-primary me-1">{{ role }}</span>
+                            {% elseif role == 'ROLE_ACCESS' %}
+                                <span class="badge bg-success me-1">{{ role }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary me-1">{{ role }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <a href="{{ path('app_users_show', {id: user.id}) }}" class="btn btn-info btn-sm">Voir</a>
+                        <a href="{{ path('app_users_edit', {id: user.id}) }}" class="btn btn-primary btn-sm">Modifier</a>
+                        {% if user != app.user %}
+                            <form method="post" action="{{ path('app_users_delete', {id: user.id}) }}" style="display:inline-block;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')">
+                                <button class="btn btn-sm btn-danger">Supprimer</button>
+                            </form>
+                        {% else %}
+                            <span class="badge bg-info">Vous</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="4" class="text-center">Aucun utilisateur trouvé.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="mt-4">
+        <small class="text-muted">
+            Total : {{ users|length }} utilisateur(s)
+        </small>
+    </div>
+{% endblock %}
