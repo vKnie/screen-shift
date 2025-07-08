@@ -8,6 +8,7 @@
     {% set group_routes = ['app_group', 'create_group', 'edit_group', 'delete_group'] %}
     {% set screen_routes = ['app_screen', 'create_screen', 'edit_screen', 'delete_screen'] %}
     {% set picture_routes = ['app_picture', 'create_picture', 'edit_picture', 'delete_picture', 'upload_picture'] %}
+    {% set pdf_routes = ['app_convert_pdf'] %}
     {% set user_routes = ['app_users', 'app_users_show', 'app_users_edit', 'app_users_delete', 'app_users_reset_password', 'app_users_assign_groups'] %}
 
     {% set section_name = 'Home' %}
@@ -19,6 +20,8 @@
         {% set section_name = 'Screen' %}
     {% elseif current_route in picture_routes %}
         {% set section_name = 'Picture' %}
+    {% elseif current_route in pdf_routes %}
+        {% set section_name = 'Convert PDF' %}
     {% elseif current_route in user_routes %}
         {% set section_name = 'Users' %}
     {% endif %}
@@ -63,6 +66,11 @@
                 <a href="{{ path('app_picture') }}" 
                    class="nav-link {% if current_route in picture_routes %}active{% else %}text-light{% endif %}">
                     <i class="bi bi-images me-2"></i>Picture
+                </a>
+                
+                <a href="{{ path('app_convert_pdf') }}" 
+                   class="nav-link {% if current_route in pdf_routes %}active{% else %}text-light{% endif %}">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>Convert PDF
                 </a>
             </li>
         </ul>
