@@ -1,8 +1,9 @@
 <?php
-
 namespace App\Entity;
 
 use App\Repository\PictureRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
@@ -29,13 +30,13 @@ class Picture
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $backgroundColor = null;
 
-    // PROPRIÉTÉ POSITION (colonne déjà existante en base)
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
     private ?int $position = null;
 
-    #[ORM\ManyToOne(inversedBy: 'pictures')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?Screen $screenPicture = null;
+    // Nouvelle relation Many-to-Many avec Screen
+    #[ORM\ManyToMany(targetEntity: Screen::class, inversedBy: 'pictures')]
+    #[ORM\JoinTable(name: 'picture_screen')]
+    private Collection $screens;
 
     #[Vich\UploadableField(mapping: 'picture_image', fileNameProperty: 'imageName')]
     private ?File $imageFile = null;
@@ -46,7 +47,12 @@ class Picture
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
-    // Getters & Setters
+    public function __construct()
+    {
+        $this->screens = new ArrayCollection();
+    }
+
+    // Getters & Setters existants
     public function getId(): ?int
     {
         return $this->id;
@@ -96,7 +102,6 @@ class Picture
         return $this;
     }
 
-    // GETTERS/SETTERS POUR POSITION
     public function getPosition(): ?int
     {
         return $this->position;
@@ -108,17 +113,47 @@ class Picture
         return $this;
     }
 
+    // Nouvelles méthodes pour gérer la collection de screens
+    /**
+     * @return Collection<int, Screen>
+     */
+    public function getScreens(): Collection
+    {
+        return $this->screens;
+    }
+
+    public function addScreen(Screen $screen): static
+    {
+        if (!$this->screens->contains($screen)) {
+            $this->screens->add($screen);
+        }
+
+        return $this;
+    }
+
+    public function removeScreen(Screen $screen): static
+    {
+        $this->screens->removeElement($screen);
+
+        return $this;
+    }
+
+    // Méthodes de compatibilité (pour ne pas casser le code existant)
     public function getScreenPicture(): ?Screen
     {
-        return $this->screenPicture;
+        return $this->screens->first() ?: null;
     }
 
     public function setScreenPicture(?Screen $screenPicture): static
     {
-        $this->screenPicture = $screenPicture;
+        $this->screens->clear();
+        if ($screenPicture !== null) {
+            $this->addScreen($screenPicture);
+        }
         return $this;
     }
 
+    // Méthodes pour l'upload d'image
     public function getImageFile(): ?File
     {
         return $this->imageFile;
