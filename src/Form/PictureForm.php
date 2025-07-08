@@ -6,6 +6,7 @@ use App\Entity\Screen;
 use App\Repository\ScreenRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\Extension\Core\Type\ColorType;
+use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -30,19 +31,19 @@ class PictureForm extends AbstractType
     {
         $builder
             ->add('delay')
-            ->add('startDate', null, [
+            ->add('startDate', DateType::class, [
                 'required' => false,
-                'empty_data' => null,
-                'placeholder' => [
-                    'year' => 'Année', 'month' => 'Mois', 'day' => 'Jour'
-                ]
+                'widget' => 'single_text',
+                'html5' => true,
+                'attr' => ['class' => 'form-control'],
+                'help' => 'Laisser vide pour démarrage immédiat'
             ])
-            ->add('endDate', null, [
+            ->add('endDate', DateType::class, [
                 'required' => false,
-                'empty_data' => null,
-                'placeholder' => [
-                    'year' => 'Année', 'month' => 'Mois', 'day' => 'Jour'
-                ]
+                'widget' => 'single_text', 
+                'html5' => true,
+                'attr' => ['class' => 'form-control'],
+                'help' => 'Laisser vide pour affichage permanent'
             ])
             ->add('backgroundColor', ColorType::class, [
                 'label' => 'Couleur de fond',
