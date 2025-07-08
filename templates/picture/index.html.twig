@@ -1,5 +1,4 @@
 {% extends 'base.html.twig' %}
-
 {% block body %}
     <h1>Liste des images</h1>
     <hr>
@@ -19,7 +18,7 @@
     {% endfor %}
    
     <a href="{{ path('create_picture') }}" class="btn btn-success mb-3">Ajouter une image</a>
-    
+   
     <table class="table table-hover">
         <thead>
             <tr>
@@ -27,6 +26,7 @@
                 <th>Délai</th>
                 <th>Début</th>
                 <th>Fin</th>
+                <th>Statut</th>
                 <th>Image</th>
                 <th>Screen</th>
                 <th>Groupe</th>
@@ -35,15 +35,61 @@
         </thead>
         <tbody>
             {% for picture in pictures %}
-                <tr>
+                {% set currentDate = 'now'|date('Y-m-d') %}
+                {% set startDate = picture.startDate ? picture.startDate|date('Y-m-d') : null %}
+                {% set endDate = picture.endDate ? picture.endDate|date('Y-m-d') : null %}
+                
+                {# Déterminer le statut de l'image #}
+                {% set status = 'active' %}
+                {% set statusClass = 'success' %}
+                {% set statusText = 'Actif' %}
+                {% set statusIcon = '' %}
+                
+                {% if startDate and currentDate < startDate %}
+                    {% set status = 'upcoming' %}
+                    {% set statusClass = 'warning' %}
+                    {% set statusText = 'À venir' %}
+                    {% set statusIcon = '' %}
+                {% elseif endDate and currentDate > endDate %}
+                    {% set status = 'expired' %}
+                    {% set statusClass = 'danger' %}
+                    {% set statusText = 'Expiré' %}
+                    {% set statusIcon = '' %}
+                {% elseif not startDate and not endDate %}
+                    {% set status = 'permanent' %}
+                    {% set statusClass = 'info' %}
+                    {% set statusText = 'Permanent' %}
+                    {% set statusIcon = '' %}
+                {% endif %}
+                
+                <tr class="{% if status == 'expired' %}table-light text-muted{% endif %}">
                     <td>{{ picture.id }}</td>
                     <td>{{ picture.delay }} sec</td>
-                    <td>{{ picture.startDate ? picture.startDate|date('d/m/Y') : '-' }}</td>
-                    <td>{{ picture.endDate ? picture.endDate|date('d/m/Y') : '-' }}</td>
+                    <td>
+                        {% if picture.startDate %}
+                            <span class="{% if status == 'upcoming' %}text-warning fw-bold{% endif %}">
+                                {{ picture.startDate|date('d/m/Y') }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if picture.endDate %}
+                            <span class="{% if status == 'expired' %}text-danger fw-bold{% endif %}">
+                                {{ picture.endDate|date('d/m/Y') }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-{{ statusClass }}">{{ statusText }}</span>
+                    </td>
                     <td>
                         {% if picture.imageName %}
-                            <img src="{{ asset('uploads/pictures/' ~ picture.imageName) }}" 
-                                 style="max-height: 50px; max-width: 60px; object-fit: cover;" 
+                            <img src="{{ asset('uploads/pictures/' ~ picture.imageName) }}"
+                                 style="max-height: 50px; max-width: 60px; object-fit: cover; {% if status == 'expired' %}opacity: 0.5;{% endif %}"
                                  alt="Image">
                         {% else %}
                             -
@@ -60,9 +106,10 @@
                 </tr>
             {% else %}
                 <tr>
-                    <td colspan="8">Aucune image trouvée.</td>
+                    <td colspan="9">Aucune image trouvée.</td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
+
 {% endblock %}
