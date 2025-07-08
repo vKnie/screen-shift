@@ -3,10 +3,9 @@
 {% block title %}{{ controller_name }}{% endblock %}
 
 {% block body %}
-    <h1><i class="bi bi-file-earmark-pdf me-2"></i>{{ controller_name }}</h1>
+    <h1>{{ controller_name }}</h1>
     <hr>
     
-    <!-- Flash Messages avec auto-hide -->
     {% for type, messages in app.flashes %}
         {% for message in messages %}
             <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" role="alert" id="flash-{{ loop.parent.loop.index }}-{{ loop.index }}">
@@ -25,7 +24,6 @@
         {% endfor %}
     {% endfor %}
 
-    <!-- Download si fichier prêt -->
     {% if app.session.get('pdf_download_ready') %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <div class="d-flex justify-content-between align-items-center">
@@ -48,15 +46,12 @@
         
         <script>
             function clearSession() {
-                // Le téléchargement va se lancer, on nettoie après
                 setTimeout(clearDownloadSession, 1000);
             }
             
             function clearDownloadSession() {
-                // Nettoyer la session côté client
                 fetch('{{ path('app_convert_pdf_clear') }}', { method: 'POST' })
                     .then(() => {
-                        // Recharger la page pour masquer le message
                         window.location.reload();
                     });
             }
@@ -110,7 +105,6 @@
         </div>
     </div>
 
-    <!-- Loading Modal -->
     <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -132,7 +126,6 @@
             const convertBtn = document.getElementById('convert-btn');
             const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
 
-            // Auto-hide des flash messages après 5 secondes
             const alerts = document.querySelectorAll('.alert[id^="flash-"]');
             alerts.forEach(function(alert) {
                 setTimeout(function() {
@@ -143,18 +136,16 @@
                 }, 5000);
             });
 
-            // Validation du fichier
             fileInput.addEventListener('change', function() {
                 const file = this.files[0];
                 if (file) {
-                    // Vérifier la taille
+
                     if (file.size > 10 * 1024 * 1024) {
                         showAlert('Le fichier est trop volumineux (max 10MB)', 'danger');
                         this.value = '';
                         return;
                     }
 
-                    // Vérifier l'extension
                     const fileName = file.name.toLowerCase();
                     if (!fileName.endsWith('.pdf')) {
                         showAlert('Veuillez sélectionner un fichier PDF', 'danger');
@@ -162,16 +153,13 @@
                         return;
                     }
 
-                    // Afficher les informations du fichier
                     const fileSize = (file.size / 1024 / 1024).toFixed(2);
                     console.log(`Fichier sélectionné: ${file.name} (${fileSize}MB)`);
                     
-                    // Optionnel : afficher une confirmation
                     showAlert(`Fichier sélectionné: ${file.name} (${fileSize}MB)`, 'info');
                 }
             });
 
-            // Soumission du formulaire
             form.addEventListener('submit', function(e) {
                 const file = fileInput.files[0];
                 if (!file) {
@@ -180,20 +168,16 @@
                     return;
                 }
 
-                // Afficher le modal de chargement
                 loadingModal.show();
                 
-                // Désactiver le bouton
                 convertBtn.disabled = true;
                 convertBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Conversion...';
             });
 
-            // Masquer le modal si la page se recharge (en cas d'erreur)
             window.addEventListener('beforeunload', function() {
                 loadingModal.hide();
             });
 
-            // Fonction pour afficher des alertes dynamiques
             function showAlert(message, type) {
                 const alertContainer = document.querySelector('h1').nextElementSibling.nextElementSibling;
                 const alertId = 'dynamic-alert-' + Date.now();
@@ -208,7 +192,6 @@
                 
                 alertContainer.insertAdjacentHTML('afterend', alertHtml);
                 
-                // Auto-hide après 5 secondes
                 setTimeout(function() {
                     const alert = document.getElementById(alertId);
                     if (alert && alert.classList.contains('show')) {

@@ -5,8 +5,6 @@
 ![MariaDB](https://img.shields.io/badge/MariaDB-10.6+-003545?style=flat&logo=mariadb)
 [![License: CC BY-NC-ND 4.0](https://img.shields.io/badge/License-CC%20BY--NC--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-nd/4.0/)
 
-Application développée avec Symfony 7.3.
-
 ## Prérequis
 
 - PHP 8.2 ou supérieur
@@ -15,41 +13,25 @@ Application développée avec Symfony 7.3.
 
 Pour plus d'informations sur les dépendances et versions requises, consultez la [documentation officielle Symfony](https://symfony.com/doc/current/setup.html).
 
-## Installation
+## Extensions PHP requises
 
-### Étape 1 : Cloner le projet
+### Extensions principales
+Assurez-vous que ces extensions PHP sont installées et activées :
 
-```bash
-git clone https://github.com/vKnie/screen-shift_symfony.git
-cd screen-shift_symfony
-```
+- `curl` - Requêtes HTTP
+- `fileinfo` - Détection des types de fichiers (uploads)
+- `gd` - Manipulation d'images de base
+- `intl` - Internationalisation (requis par Symfony)
+- `mbstring` - Gestion des chaînes multi-octets
+- `openssl` - Sécurité et HTTPS
+- `pdo_mysql` - Connexion MariaDB/MySQL
+- `zip` - Gestion des archives ZIP (requis pour l'export PDF)
+- `xml`, `dom`, `simplexml` - Traitement XML
+- `tokenizer`, `ctype`, `json` - Analyse et validation de données
 
-### Étape 2 : Installer les dépendances
-
-```bash
-composer install
-```
-
-### Étape 3 : Configuration de l'environnement
-
-Modifier le fichier `.env` pour configurer la base de données.
-
-Exemple de configuration pour MariaDB :
-```env
-DATABASE_URL="mysql://symfony_user:azerty123@127.0.0.1:3306/screen-shift"
-```
-
-### Étape 4 : Mise à jour de la base de données
-
-```bash
-php bin/console doctrine:schema:update --force
-```
-
-### Étape 5 : Démarrer l'application
-
-```bash
-symfony server:start
-```
+### Extensions avancées pour la conversion PDF
+Pour la fonctionnalité de conversion PDF en images :
+- `imagick` - **Requis** pour la conversion PDF réelle
 
 ## Configuration des uploads d'images
 
@@ -57,7 +39,7 @@ En cas de problème avec les uploads d'images, modifier les fichiers de configur
 - `/etc/php/8.2/fpm/php.ini`
 - `/etc/php/8.2/cli/php.ini`
 
-**Conseil :** Augmenter la taille maximale des uploads à 50M dans les directives suivantes :
+**Conseil :** Augmenter la taille maximale des uploads dans les directives suivantes :
 ```ini
 upload_max_filesize = 50M
 post_max_size = 50M
@@ -67,13 +49,16 @@ memory_limit = 256M
 ```
 
 ## Base de données
-
 Le projet utilise MariaDB avec phpMyAdmin pour la consultation des données.
 
-## Structure du projet
 
+### Prérequis système
+- **ImageMagick** : Conversion PDF native
+- **Ghostscript** : Moteur de rendu PDF
+- **php-imagick** : Extension PHP pour ImageMagick
+
+## Structure du projet
 Application Symfony 7.3 avec architecture MVC standard.
 
 ## Support
-
 Pour toute question ou problème, consultez la documentation Symfony ou ouvrez une issue sur le repository GitHub.
