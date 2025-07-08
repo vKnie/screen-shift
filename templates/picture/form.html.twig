@@ -400,6 +400,21 @@
             }
             
             updateColorDisplay(colorPicker.value);
+            
+            {% if edit is defined and edit %}
+                {% if form.vars.data.imageName %}
+                    const existingImagePath = "{{ asset('uploads/pictures/' ~ form.vars.data.imageName) }}";
+                    previewImg.src = existingImagePath;
+                    previewSection.style.display = 'block';
+                    
+                    analyzeImageColors(existingImagePath);
+                    
+                    {% if form.vars.data.backgroundColor %}
+                        const currentBgColor = "{{ form.vars.data.backgroundColor }}";
+                        updateColorDisplay(currentBgColor);
+                    {% endif %}
+                {% endif %}
+            {% endif %}
         });
     </script>
 {% endblock %}
