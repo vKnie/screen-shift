@@ -8,76 +8,55 @@
     
     {% for type, messages in app.flashes %}
         {% for message in messages %}
-            <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" role="alert" id="flash-{{ loop.parent.loop.index }}-{{ loop.index }}">
+            <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" role="alert">
                 {% if type == 'success' %}
                     <i class="bi bi-check-circle me-2"></i>
                 {% elseif type == 'error' %}
                     <i class="bi bi-exclamation-triangle me-2"></i>
                 {% elseif type == 'warning' %}
                     <i class="bi bi-exclamation-circle me-2"></i>
-                {% elseif type == 'info' %}
-                    <i class="bi bi-info-circle me-2"></i>
                 {% endif %}
                 {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         {% endfor %}
     {% endfor %}
 
     {% if app.session.get('pdf_download_ready') %}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="alert alert-success">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <i class="bi bi-check-circle me-2"></i>
-                    <strong>Fichier prêt !</strong> 
-                    <a href="{{ path('app_convert_pdf_download') }}" class="alert-link">Cliquez ici pour télécharger</a>
+                    <strong>Conversion terminée !</strong> 
+                    {{ app.session.get('pdf_page_count') }} images créées
                 </div>
                 <div>
-                    <a href="{{ path('app_convert_pdf_download') }}" class="btn btn-success btn-sm me-2" onclick="clearSession()">
-                        <i class="bi bi-download me-1"></i>Télécharger
+                    <a href="{{ path('app_convert_pdf_download') }}" class="btn btn-success btn-sm me-2">
+                        <i class="bi bi-download me-1"></i>Télécharger ZIP
                     </a>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearDownloadSession()">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSession()">
                         <i class="bi bi-x"></i> Annuler
                     </button>
                 </div>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="clearDownloadSession()"></button>
         </div>
-        
-        <script>
-            function clearSession() {
-                setTimeout(clearDownloadSession, 1000);
-            }
-            
-            function clearDownloadSession() {
-                fetch('{{ path('app_convert_pdf_clear') }}', { method: 'POST' })
-                    .then(() => {
-                        window.location.reload();
-                    });
-            }
-        </script>
     {% endif %}
 
     <div class="row">
         <div class="col-lg-8">
-            <form action="{{ path('app_convert_pdf_upload') }}" method="post" enctype="multipart/form-data" id="pdf-upload-form">
+            <form action="{{ path('app_convert_pdf_upload') }}" method="post" enctype="multipart/form-data" id="pdf-form">
                 <div class="mb-3">
                     <label for="pdf_file" class="form-label">
                         <i class="bi bi-cloud-upload me-2"></i>Sélectionner un fichier PDF
                     </label>
-                    <input type="file" 
-                           class="form-control" 
-                           id="pdf_file" 
-                           name="pdf_file" 
-                           accept=".pdf" 
-                           required>
+                    <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
                     <div class="form-text">
                         <i class="bi bi-info-circle me-1"></i>
-                        Taille maximale : 10MB | Format accepté : PDF uniquement
+                        Limite: {{ max_size_mb }}MB | Max {{ max_pages }} pages | Format: PDF uniquement
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-success" id="convert-btn">
+                <button type="submit" class="btn btn-primary" id="submit-btn">
                     <i class="bi bi-gear me-2"></i>Convertir en PNG
                 </button>
             </form>
@@ -86,18 +65,19 @@
         <div class="col-lg-4">
             <div class="card border-info">
                 <div class="card-header bg-info text-white">
-                    <h6 class="mb-0"><i class="bi bi-gear me-2"></i>Spécifications</h6>
+                    <h6 class="mb-0"><i class="bi bi-gear me-2"></i>Configuration</h6>
                 </div>
                 <div class="card-body">
                     <ul class="list-unstyled mb-0">
-                        <li><i class="bi bi-check-circle text-success me-2"></i><strong>Résolution :</strong> 150 DPI</li>
-                        <li><i class="bi bi-check-circle text-success me-2"></i><strong>Format :</strong> PNG</li>
-                        <li><i class="bi bi-check-circle text-success me-2"></i><strong>Livraison :</strong> ZIP</li>
+                        <li><i class="bi bi-check text-success me-2"></i><strong>Résolution:</strong> 120 DPI</li>
+                        <li><i class="bi bi-check text-success me-2"></i><strong>Format:</strong> PNG optimisé</li>
+                        <li><i class="bi bi-check text-success me-2"></i><strong>Livraison:</strong> ZIP</li>
+                        <li><i class="bi bi-shield text-warning me-2"></i><strong>Limite:</strong> {{ max_pages }} pages max</li>
                     </ul>
                     <hr>
                     <div class="text-center">
                         <a href="{{ path('app_convert_pdf_test') }}" class="btn btn-sm btn-outline-info" target="_blank">
-                            <i class="bi bi-gear me-1"></i>Tester les dépendances
+                            <i class="bi bi-gear me-1"></i>Diagnostic
                         </a>
                     </div>
                 </div>
@@ -105,15 +85,17 @@
         </div>
     </div>
 
-    <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <!-- Modal de progression -->
+    <div class="modal fade" id="progressModal" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-body text-center p-4">
-                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Chargement...</span>
-                    </div>
+                    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
                     <h5>Conversion en cours...</h5>
-                    <p class="text-muted">Veuillez patienter pendant la conversion de votre PDF.</p>
+                    <p class="text-muted mb-0">Traitement de votre PDF, veuillez patienter.</p>
+                    <div class="progress mt-3" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -121,95 +103,59 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('pdf-upload-form');
+            const form = document.getElementById('pdf-form');
             const fileInput = document.getElementById('pdf_file');
-            const convertBtn = document.getElementById('convert-btn');
-            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
-
-            const alerts = document.querySelectorAll('.alert[id^="flash-"]');
-            alerts.forEach(function(alert) {
-                setTimeout(function() {
-                    if (alert && alert.classList.contains('show')) {
-                        const bsAlert = new bootstrap.Alert(alert);
-                        bsAlert.close();
-                    }
-                }, 5000);
-            });
+            const submitBtn = document.getElementById('submit-btn');
+            const progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
 
             fileInput.addEventListener('change', function() {
                 const file = this.files[0];
-                if (file) {
+                if (!file) return;
 
-                    if (file.size > 10 * 1024 * 1024) {
-                        showAlert('Le fichier est trop volumineux (max 10MB)', 'danger');
-                        this.value = '';
-                        return;
-                    }
-
-                    const fileName = file.name.toLowerCase();
-                    if (!fileName.endsWith('.pdf')) {
-                        showAlert('Veuillez sélectionner un fichier PDF', 'danger');
-                        this.value = '';
-                        return;
-                    }
-
-                    const fileSize = (file.size / 1024 / 1024).toFixed(2);
-                    console.log(`Fichier sélectionné: ${file.name} (${fileSize}MB)`);
-                    
-                    showAlert(`Fichier sélectionné: ${file.name} (${fileSize}MB)`, 'info');
+                // Validation côté client
+                if (file.size > {{ max_size_mb }} * 1024 * 1024) {
+                    alert('Fichier trop volumineux (max {{ max_size_mb }}MB)');
+                    this.value = '';
+                    return;
                 }
+
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    alert('Seuls les fichiers PDF sont acceptés');
+                    this.value = '';
+                    return;
+                }
+
+                const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+                console.log(`PDF sélectionné: ${file.name} (${sizeMB}MB)`);
             });
 
             form.addEventListener('submit', function(e) {
                 const file = fileInput.files[0];
                 if (!file) {
                     e.preventDefault();
-                    showAlert('Veuillez sélectionner un fichier PDF', 'danger');
+                    alert('Veuillez sélectionner un fichier PDF');
                     return;
                 }
 
-                loadingModal.show();
-                
-                convertBtn.disabled = true;
-                convertBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Conversion...';
+                // Afficher le modal de progression
+                progressModal.show();
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass me-2"></i>Conversion...';
             });
 
-            window.addEventListener('beforeunload', function() {
-                loadingModal.hide();
-            });
-
-            function showAlert(message, type) {
-                const alertContainer = document.querySelector('h1').nextElementSibling.nextElementSibling;
-                const alertId = 'dynamic-alert-' + Date.now();
-                
-                const alertHtml = `
-                    <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
-                        <i class="bi bi-${getIconForType(type)} me-2"></i>
-                        ${message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                `;
-                
-                alertContainer.insertAdjacentHTML('afterend', alertHtml);
-                
-                setTimeout(function() {
-                    const alert = document.getElementById(alertId);
-                    if (alert && alert.classList.contains('show')) {
-                        const bsAlert = new bootstrap.Alert(alert);
-                        bsAlert.close();
+            // Auto-dismiss des alertes
+            setTimeout(function() {
+                document.querySelectorAll('.alert').forEach(function(alert) {
+                    if (alert.classList.contains('show')) {
+                        bootstrap.Alert.getOrCreateInstance(alert).close();
                     }
-                }, 5000);
-            }
-
-            function getIconForType(type) {
-                switch(type) {
-                    case 'success': return 'check-circle';
-                    case 'danger': return 'exclamation-triangle';
-                    case 'warning': return 'exclamation-circle';
-                    case 'info': return 'info-circle';
-                    default: return 'info-circle';
-                }
-            }
+                });
+            }, 8000);
         });
+
+        function clearSession() {
+            fetch('{{ path('app_convert_pdf_clear') }}', { method: 'POST' })
+                .then(() => location.reload());
+        }
     </script>
 {% endblock %}
