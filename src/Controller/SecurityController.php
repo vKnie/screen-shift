@@ -13,7 +13,7 @@ class SecurityController extends AbstractController
     {
         // Si l'utilisateur est déjà connecté et a le bon rôle, rediriger
         if ($this->getUser() && $this->isGranted('ROLE_ACCESS')) {
-            return $this->redirectToRoute('app_dashboard'); // Changez selon votre route
+            return $this->redirectToRoute('app_home'); // Changez selon votre route
         }
 
         // get the login error if there is one

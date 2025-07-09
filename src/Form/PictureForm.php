@@ -4,6 +4,7 @@ namespace App\Form;
 use App\Entity\Picture;
 use App\Entity\Screen;
 use App\Repository\ScreenRepository;
+use App\Service\PdfConverterService;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\Extension\Core\Type\ColorType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
@@ -18,17 +19,23 @@ class PictureForm extends AbstractType
 {
     private AuthorizationCheckerInterface $authorizationChecker;
     private TokenStorageInterface $tokenStorage;
+    private PdfConverterService $pdfConverter;
 
     public function __construct(
         AuthorizationCheckerInterface $authorizationChecker,
-        TokenStorageInterface $tokenStorage
+        TokenStorageInterface $tokenStorage,
+        PdfConverterService $pdfConverter
     ) {
         $this->authorizationChecker = $authorizationChecker;
         $this->tokenStorage = $tokenStorage;
+        $this->pdfConverter = $pdfConverter;
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $maxSizeMB = $this->pdfConverter->getMaxFileSizeMB();
+        $maxPages = $this->pdfConverter->getMaxPages();
+        
         $builder
             ->add('delay')
             ->add('startDate', DateType::class, [
@@ -54,10 +61,16 @@ class PictureForm extends AbstractType
             ])
             ->add('imageFile', VichImageType::class, [
                 'required' => false,
-                'label' => 'Image (JPEG, PNG...)',
+                'label' => 'Image (PNG, JPEG...) ou PDF',
                 'allow_delete' => false,
                 'download_uri' => false,
                 'image_uri' => false,
+                'attr' => [
+                    'accept' => 'image/*,application/pdf',
+                    'data-max-size' => $maxSizeMB,
+                    'data-max-pages' => $maxPages
+                ],
+                'help' => "Formats acceptés : PNG, JPEG, GIF, SVG, PDF (max {$maxSizeMB}MB, {$maxPages} pages max pour PDF)"
             ])
             ->add('screens', EntityType::class, [
                 'class' => Screen::class,
