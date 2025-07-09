@@ -19,7 +19,7 @@
    
     {{ form_start(form) }}
         <div class="mb-3">
-            {{ form_label(form.delay) }}
+            {{ form_label(form.delay, null, {'label_attr': {'class': 'form-label'}}) }}
             {{ form_widget(form.delay, {'attr': {'class': 'form-control'}}) }}
             {{ form_errors(form.delay) }}
         </div>
@@ -27,14 +27,14 @@
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">
-                    {{ form_label(form.startDate) }}
+                    {{ form_label(form.startDate, null, {'label_attr': {'class': 'form-label'}}) }}
                     {{ form_widget(form.startDate, {'attr': {'class': 'form-control'}}) }}
                     {{ form_errors(form.startDate) }}
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
-                    {{ form_label(form.endDate) }}
+                    {{ form_label(form.endDate, null, {'label_attr': {'class': 'form-label'}}) }}
                     {{ form_widget(form.endDate, {'attr': {'class': 'form-control'}}) }}
                     {{ form_errors(form.endDate) }}
                 </div>
@@ -42,13 +42,12 @@
         </div>
         
         <div class="mb-3">
-            {{ form_label(form.imageFile) }}
+            {{ form_label(form.imageFile, null, {'label_attr': {'class': 'form-label'}}) }}
             {{ form_widget(form.imageFile, {'attr': {'class': 'form-control custom-image-upload', 'accept': 'image/*'}}) }}
             {{ form_errors(form.imageFile) }}
         </div>
 
         <div id="preview-color-section" style="display: none;">
-            <!-- Prévisualisation -->
             <div class="mb-4">
                 <div class="card">
                     <div class="card-header">
@@ -65,7 +64,6 @@
                 </div>
             </div>
 
-            <!-- Couleur de fond -->
             <div class="mb-4">
                 <div class="card">
                     <div class="card-header">
@@ -73,7 +71,7 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            {{ form_label(form.backgroundColor) }}
+                            {{ form_label(form.backgroundColor, null, {'label_attr': {'class': 'form-label'}}) }}
                             <div class="d-flex align-items-center gap-2">
                                 {{ form_widget(form.backgroundColor, {'attr': {'class': 'custom-color-picker form-control-color'}}) }}
                                 <code id="color-value" class="badge bg-light text-dark border">#ffffff</code>
@@ -83,8 +81,7 @@
                         
                         <div id="color-suggestions-container" style="display: none;">
                             <h6 class="mb-3">Suggestions intelligentes</h6>
-                            <div id="color-suggestions" class="row g-2 mb-3">
-                            </div>
+                            <div id="color-suggestions" class="row g-2 mb-3"></div>
                             <button type="button" id="suggest-color" class="btn btn-outline-primary btn-sm">
                                 🔄 Nouvelles suggestions
                             </button>
@@ -95,21 +92,75 @@
         </div>
         
         <div class="mb-3">
-            {{ form_label(form.screenPicture) }}
-            {{ form_widget(form.screenPicture, {'attr': {'class': 'form-select'}}) }}
-            {{ form_errors(form.screenPicture) }}
+            {{ form_label(form.screens, null, {'label_attr': {'class': 'form-label'}}) }}
+            <div class="screen-selection-container p-3 border rounded bg-light">
+                {{ form_widget(form.screens) }}
+            </div>
+            {{ form_errors(form.screens) }}
         </div>
         
-        <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary">
-                {{ edit is defined ? 'Mettre à jour' : 'Créer' }}
-            </button>
-            <a href="{{ path('app_picture') }}" class="btn btn-secondary">Retour</a>
-        </div>
+        <button type="submit" class="btn btn-primary">
+            {{ edit is defined ? 'Mettre à jour' : 'Créer' }}
+        </button>
+        <a href="{{ path('app_picture') }}" class="btn btn-secondary ms-2">Retour</a>
     {{ form_end(form) }}
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Style des checkboxes pour les écrans
+            const screenCheckboxes = document.querySelectorAll('.screen-checkboxes input[type="checkbox"]');
+            screenCheckboxes.forEach(checkbox => {
+                const label = checkbox.closest('label');
+                if (label) {
+                    label.classList.add('form-check', 'mb-2', 'p-2', 'border', 'rounded', 'bg-white');
+                    label.style.cursor = 'pointer';
+                    
+                    checkbox.classList.add('form-check-input', 'me-2');
+                    
+                    const group = checkbox.getAttribute('data-group');
+                    if (group) {
+                        const groupBadge = document.createElement('span');
+                        groupBadge.className = 'badge bg-info ms-2';
+                        groupBadge.textContent = group;
+                        label.appendChild(groupBadge);
+                    }
+                    
+                    // Effet hover
+                    label.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = '#e3f2fd';
+                        this.style.borderColor = '#2196f3';
+                    });
+                    
+                    label.addEventListener('mouseleave', function() {
+                        if (!checkbox.checked) {
+                            this.style.backgroundColor = '#ffffff';
+                            this.style.borderColor = '#dee2e6';
+                        }
+                    });
+                    
+                    // Effet selection
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked) {
+                            label.style.backgroundColor = '#d1ecf1';
+                            label.style.borderColor = '#bee5eb';
+                            label.classList.add('border-info');
+                        } else {
+                            label.style.backgroundColor = '#ffffff';
+                            label.style.borderColor = '#dee2e6';
+                            label.classList.remove('border-info');
+                        }
+                    });
+                    
+                    // État initial
+                    if (checkbox.checked) {
+                        label.style.backgroundColor = '#d1ecf1';
+                        label.style.borderColor = '#bee5eb';
+                        label.classList.add('border-info');
+                    }
+                }
+            });
+            
+            // Code pour les couleurs...
             const imageUpload = document.querySelector('.custom-image-upload');
             const colorPicker = document.querySelector('.custom-color-picker');
             const suggestButton = document.getElementById('suggest-color');

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Entity;
 
 use App\Repository\ScreenRepository;
@@ -25,7 +24,7 @@ class Screen
     /**
      * @var Collection<int, Picture>
      */
-    #[ORM\OneToMany(targetEntity: Picture::class, mappedBy: 'screenPicture', orphanRemoval: true)]
+    #[ORM\ManyToMany(targetEntity: Picture::class, mappedBy: 'screens')]
     private Collection $pictures;
 
     public function __construct()
@@ -46,7 +45,6 @@ class Screen
     public function setName(string $name): static
     {
         $this->name = $name;
-
         return $this;
     }
 
@@ -58,7 +56,6 @@ class Screen
     public function setGroupeScreen(?Group $groupeScreen): static
     {
         $this->groupeScreen = $groupeScreen;
-
         return $this;
     }
 
@@ -74,7 +71,7 @@ class Screen
     {
         if (!$this->pictures->contains($picture)) {
             $this->pictures->add($picture);
-            $picture->setScreenPicture($this);
+            $picture->addScreen($this);
         }
 
         return $this;
@@ -83,10 +80,7 @@ class Screen
     public function removePicture(Picture $picture): static
     {
         if ($this->pictures->removeElement($picture)) {
-            // set the owning side to null (unless already changed)
-            if ($picture->getScreenPicture() === $this) {
-                $picture->setScreenPicture(null);
-            }
+            $picture->removeScreen($this);
         }
 
         return $this;

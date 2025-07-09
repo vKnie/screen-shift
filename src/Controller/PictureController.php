@@ -31,8 +31,17 @@ final class PictureController extends AbstractController
             $pictures = [];
             
             foreach ($allPictures as $picture) {
-                $screen = $picture->getScreenPicture();
-                if ($screen && $this->userHasGroupeRole($currentUser, $screen->getGroupeScreen())) {
+                $hasAccess = false;
+                
+                // Vérifier si l'utilisateur a accès à au moins un des screens de la picture
+                foreach ($picture->getScreens() as $screen) {
+                    if ($this->userHasGroupeRole($currentUser, $screen->getGroupeScreen())) {
+                        $hasAccess = true;
+                        break;
+                    }
+                }
+                
+                if ($hasAccess) {
                     $pictures[] = $picture;
                 }
             }
@@ -52,15 +61,24 @@ final class PictureController extends AbstractController
         
         if ($form->isSubmitted() && $form->isValid()) {
             try {
-                $selectedScreen = $picture->getScreenPicture();
+                $selectedScreens = $picture->getScreens();
                 $currentUser = $this->getUser();
                 
-                // Vérifier si l'utilisateur a le rôle du groupe du screen sélectionné
-                if (!$this->userHasGroupeRole($currentUser, $selectedScreen->getGroupeScreen())) {
-                    $this->addFlash('error', sprintf('Vous n\'avez pas les permissions pour ajouter une image au screen "%s" (groupe "%s"). Rôle requis : %s', 
-                        $selectedScreen->getName(),
-                        $selectedScreen->getGroupeScreen()->getName(),
-                        $selectedScreen->getGroupeScreen()->getRole()
+                // Vérifier si l'utilisateur a le rôle pour tous les screens sélectionnés
+                $unauthorizedScreens = [];
+                foreach ($selectedScreens as $screen) {
+                    if (!$this->userHasGroupeRole($currentUser, $screen->getGroupeScreen())) {
+                        $unauthorizedScreens[] = sprintf('%s (groupe "%s", rôle requis : %s)', 
+                            $screen->getName(),
+                            $screen->getGroupeScreen()->getName(),
+                            $screen->getGroupeScreen()->getRole()
+                        );
+                    }
+                }
+                
+                if (!empty($unauthorizedScreens)) {
+                    $this->addFlash('error', sprintf('Vous n\'avez pas les permissions pour les écrans suivants : %s', 
+                        implode(', ', $unauthorizedScreens)
                     ));
                     return $this->render('picture/form.html.twig', [
                         'form' => $form->createView(),
@@ -70,8 +88,14 @@ final class PictureController extends AbstractController
                 $em->persist($picture);
                 $em->flush();
                 
-                $screenName = $picture->getScreenPicture() ? $picture->getScreenPicture()->getName() : 'N/A';
-                $this->addFlash('success', sprintf('Image ajoutée avec succès au screen "%s".', $screenName));
+                $screenNames = [];
+                foreach ($selectedScreens as $screen) {
+                    $screenNames[] = $screen->getName();
+                }
+                
+                $this->addFlash('success', sprintf('Image ajoutée avec succès aux écrans : %s', 
+                    implode(', ', $screenNames)
+                ));
                 
                 return $this->redirectToRoute('app_picture');
             } catch (\Exception $e) {
@@ -89,12 +113,18 @@ final class PictureController extends AbstractController
     {
         // Vérifier que l'utilisateur peut modifier cette picture
         $currentUser = $this->getUser();
-        $currentScreen = $picture->getScreenPicture();
         
-        if (!$this->userHasGroupeRole($currentUser, $currentScreen->getGroupeScreen())) {
-            $this->addFlash('error', sprintf('Vous n\'avez pas les permissions pour modifier cette image. Rôle requis : %s', 
-                $currentScreen->getGroupeScreen()->getRole()
-            ));
+        // Vérifier l'accès à au moins un des screens actuels
+        $hasAccess = false;
+        foreach ($picture->getScreens() as $screen) {
+            if ($this->userHasGroupeRole($currentUser, $screen->getGroupeScreen())) {
+                $hasAccess = true;
+                break;
+            }
+        }
+        
+        if (!$hasAccess) {
+            $this->addFlash('error', 'Vous n\'avez pas les permissions pour modifier cette image.');
             return $this->redirectToRoute('app_picture');
         }
         
@@ -103,14 +133,23 @@ final class PictureController extends AbstractController
         
         if ($form->isSubmitted() && $form->isValid()) {
             try {
-                $selectedScreen = $picture->getScreenPicture();
+                $selectedScreens = $picture->getScreens();
                 
-                // Vérifier si l'utilisateur a le rôle du nouveau screen sélectionné
-                if (!$this->userHasGroupeRole($currentUser, $selectedScreen->getGroupeScreen())) {
-                    $this->addFlash('error', sprintf('Vous n\'avez pas les permissions pour assigner cette image au screen "%s" (groupe "%s"). Rôle requis : %s', 
-                        $selectedScreen->getName(),
-                        $selectedScreen->getGroupeScreen()->getName(),
-                        $selectedScreen->getGroupeScreen()->getRole()
+                // Vérifier si l'utilisateur a le rôle pour tous les nouveaux screens sélectionnés
+                $unauthorizedScreens = [];
+                foreach ($selectedScreens as $screen) {
+                    if (!$this->userHasGroupeRole($currentUser, $screen->getGroupeScreen())) {
+                        $unauthorizedScreens[] = sprintf('%s (groupe "%s", rôle requis : %s)', 
+                            $screen->getName(),
+                            $screen->getGroupeScreen()->getName(),
+                            $screen->getGroupeScreen()->getRole()
+                        );
+                    }
+                }
+                
+                if (!empty($unauthorizedScreens)) {
+                    $this->addFlash('error', sprintf('Vous n\'avez pas les permissions pour les écrans suivants : %s', 
+                        implode(', ', $unauthorizedScreens)
                     ));
                     return $this->render('picture/form.html.twig', [
                         'form' => $form->createView(),
@@ -120,8 +159,14 @@ final class PictureController extends AbstractController
                 
                 $em->flush();
                 
-                $screenName = $picture->getScreenPicture() ? $picture->getScreenPicture()->getName() : 'N/A';
-                $this->addFlash('success', sprintf('Image modifiée avec succès pour le screen "%s".', $screenName));
+                $screenNames = [];
+                foreach ($selectedScreens as $screen) {
+                    $screenNames[] = $screen->getName();
+                }
+                
+                $this->addFlash('success', sprintf('Image modifiée avec succès pour les écrans : %s', 
+                    implode(', ', $screenNames)
+                ));
                 
                 return $this->redirectToRoute('app_picture');
             } catch (\Exception $e) {
@@ -140,23 +185,36 @@ final class PictureController extends AbstractController
     {
         // Vérifier que l'utilisateur peut supprimer cette picture
         $currentUser = $this->getUser();
-        $screen = $picture->getScreenPicture();
         
-        if (!$this->userHasGroupeRole($currentUser, $screen->getGroupeScreen())) {
-            $this->addFlash('error', sprintf('Vous n\'avez pas les permissions pour supprimer cette image. Rôle requis : %s', 
-                $screen->getGroupeScreen()->getRole()
-            ));
+        // Vérifier l'accès à au moins un des screens
+        $hasAccess = false;
+        foreach ($picture->getScreens() as $screen) {
+            if ($this->userHasGroupeRole($currentUser, $screen->getGroupeScreen())) {
+                $hasAccess = true;
+                break;
+            }
+        }
+        
+        if (!$hasAccess) {
+            $this->addFlash('error', 'Vous n\'avez pas les permissions pour supprimer cette image.');
             return $this->redirectToRoute('app_picture');
         }
         
         try {
-            $screenName = $picture->getScreenPicture() ? $picture->getScreenPicture()->getName() : 'N/A';
+            $screenNames = [];
+            foreach ($picture->getScreens() as $screen) {
+                $screenNames[] = $screen->getName();
+            }
+            
             $imageName = $picture->getImageName() ?: 'Image sans nom';
             
             $em->remove($picture);
             $em->flush();
             
-            $this->addFlash('success', sprintf('Image "%s" supprimée avec succès du screen "%s".', $imageName, $screenName));
+            $this->addFlash('success', sprintf('Image "%s" supprimée avec succès des écrans : %s', 
+                $imageName, 
+                implode(', ', $screenNames)
+            ));
         } catch (\Exception $e) {
             $this->addFlash('error', 'Erreur lors de la suppression de l\'image : ' . $e->getMessage());
         }

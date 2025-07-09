@@ -6,6 +6,7 @@ use App\Entity\Screen;
 use App\Repository\ScreenRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\Extension\Core\Type\ColorType;
+use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -30,8 +31,20 @@ class PictureForm extends AbstractType
     {
         $builder
             ->add('delay')
-            ->add('startDate')
-            ->add('endDate')
+            ->add('startDate', DateType::class, [
+                'required' => false,
+                'widget' => 'single_text',
+                'html5' => true,
+                'attr' => ['class' => 'form-control'],
+                'help' => 'Laisser vide pour démarrage immédiat'
+            ])
+            ->add('endDate', DateType::class, [
+                'required' => false,
+                'widget' => 'single_text', 
+                'html5' => true,
+                'attr' => ['class' => 'form-control'],
+                'help' => 'Laisser vide pour affichage permanent'
+            ])
             ->add('backgroundColor', ColorType::class, [
                 'label' => 'Couleur de fond',
                 'attr' => [
@@ -46,7 +59,7 @@ class PictureForm extends AbstractType
                 'download_uri' => false,
                 'image_uri' => false,
             ])
-            ->add('screenPicture', EntityType::class, [
+            ->add('screens', EntityType::class, [
                 'class' => Screen::class,
                 'choice_label' => function (Screen $screen) {
                     return $screen->getName() . ' (' . $screen->getGroupeScreen()->getName() . ')';
@@ -54,13 +67,15 @@ class PictureForm extends AbstractType
                 'choice_attr' => function (Screen $screen) {
                     return [
                         'data-role' => $screen->getGroupeScreen()->getRole(),
-                        'title' => $screen->getName() . ' - ' . $screen->getGroupeScreen()->getName() . ' - ' . $screen->getGroupeScreen()->getRole()
+                        'data-group' => $screen->getGroupeScreen()->getName()
                     ];
                 },
-                'label' => 'Écran',
-                'placeholder' => 'Sélectionner un écran',
+                'label' => 'Écrans',
+                'multiple' => true,
+                'expanded' => true,
+                'by_reference' => false,
                 'attr' => [
-                    'class' => 'form-select screen-select'
+                    'class' => 'screen-checkboxes'
                 ],
                 'query_builder' => function (ScreenRepository $er) {
                     $user = $this->getUser();

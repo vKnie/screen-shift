@@ -20,16 +20,14 @@
     <a href="{{ path('create_picture') }}" class="btn btn-success mb-3">Ajouter une image</a>
    
     <table class="table table-hover">
-        <thead>
+        <thead class="table-light">
             <tr>
-                <th>ID</th>
+                <th>Image</th>
                 <th>Délai</th>
                 <th>Début</th>
                 <th>Fin</th>
                 <th>Statut</th>
-                <th>Image</th>
-                <th>Screen</th>
-                <th>Groupe</th>
+                <th>Écrans</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -63,9 +61,17 @@
                 {% endif %}
                 
                 <tr class="{% if status == 'expired' %}table-light text-muted{% endif %}">
-                    <td>{{ picture.id }}</td>
-                    <td>{{ picture.delay }} sec</td>
-                    <td>
+                    <td class="align-middle">
+                        {% if picture.imageName %}
+                            <img src="{{ asset('uploads/pictures/' ~ picture.imageName) }}"
+                                 style="max-height: 60px; max-width: 70px; object-fit: cover; {% if status == 'expired' %}opacity: 0.5;{% endif %}"
+                                 alt="Image">
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="align-middle">{{ picture.delay }} sec</td>
+                    <td class="align-middle">
                         {% if picture.startDate %}
                             <span class="{% if status == 'upcoming' %}text-warning fw-bold{% endif %}">
                                 {{ picture.startDate|date('d/m/Y') }}
@@ -74,7 +80,7 @@
                             -
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="align-middle">
                         {% if picture.endDate %}
                             <span class="{% if status == 'expired' %}text-danger fw-bold{% endif %}">
                                 {{ picture.endDate|date('d/m/Y') }}
@@ -83,21 +89,19 @@
                             -
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="align-middle">
                         <span class="badge bg-{{ statusClass }}">{{ statusText }}</span>
                     </td>
-                    <td>
-                        {% if picture.imageName %}
-                            <img src="{{ asset('uploads/pictures/' ~ picture.imageName) }}"
-                                 style="max-height: 50px; max-width: 60px; object-fit: cover; {% if status == 'expired' %}opacity: 0.5;{% endif %}"
-                                 alt="Image">
+                    <td class="align-middle">
+                        {% if picture.screens|length > 0 %}
+                            {% for screen in picture.screens %}
+                                <span class="badge bg-secondary me-1">{{ screen.name }}</span>
+                            {% endfor %}
                         {% else %}
-                            -
+                            <span class="text-muted">Aucun écran</span>
                         {% endif %}
                     </td>
-                    <td>{{ picture.screenPicture ? picture.screenPicture.name : 'N/A' }}</td>
-                    <td>{{ picture.screenPicture and picture.screenPicture.groupeScreen ? picture.screenPicture.groupeScreen.name : 'N/A' }}</td>
-                    <td>
+                    <td class="align-middle">
                         <a href="{{ path('edit_picture', {id: picture.id}) }}" class="btn btn-primary btn-sm">Modifier</a>
                         <form method="post" action="{{ path('delete_picture', {id: picture.id}) }}" style="display:inline-block;">
                             <button class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette image ?')">Supprimer</button>
@@ -106,7 +110,7 @@
                 </tr>
             {% else %}
                 <tr>
-                    <td colspan="9">Aucune image trouvée.</td>
+                    <td colspan="7">Aucune image trouvée.</td>
                 </tr>
             {% endfor %}
         </tbody>
