@@ -17,6 +17,75 @@ class PictureRepository extends ServiceEntityRepository
     }
 
     /**
+     * Récupère toutes les pictures avec leurs screens et groupes en une seule requête
+     * Évite le problème N+1
+     */
+    public function findAllWithScreensAndGroups(): array
+    {
+        return $this->createQueryBuilder('p')
+            ->leftJoin('p.screens', 's')
+            ->leftJoin('s.groupeScreen', 'g')
+            ->addSelect('s', 'g')
+            ->orderBy('p.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Récupère les pictures accessibles selon les rôles de l'utilisateur
+     * Optimisé pour éviter N+1
+     */
+    public function findByUserRoles(array $userRoles): array
+    {
+        return $this->createQueryBuilder('p')
+            ->leftJoin('p.screens', 's')
+            ->leftJoin('s.groupeScreen', 'g')
+            ->addSelect('s', 'g')
+            ->where('g.role IN (:roles)')
+            ->setParameter('roles', $userRoles)
+            ->orderBy('p.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Récupère une picture avec ses screens et groupes
+     * Pour les actions edit/delete
+     */
+    public function findOneWithScreensAndGroups(int $id): ?Picture
+    {
+        return $this->createQueryBuilder('p')
+            ->leftJoin('p.screens', 's')
+            ->leftJoin('s.groupeScreen', 'g')
+            ->addSelect('s', 'g')
+            ->where('p.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Vérifie si l'utilisateur a accès à une picture donnée
+     */
+    public function userHasAccessToPicture(int $pictureId, array $userRoles): bool
+    {
+        $result = $this->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->leftJoin('p.screens', 's')
+            ->leftJoin('s.groupeScreen', 'g')
+            ->where('p.id = :pictureId')
+            ->andWhere('g.role IN (:roles)')
+            ->setParameter('pictureId', $pictureId)
+            ->setParameter('roles', $userRoles)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $result > 0;
+    }
+
+    // === MÉTHODES EXISTANTES POUR LA GESTION DES POSITIONS ===
+
+    /**
      * Trouve toutes les images d'un écran triées par position
      */
     public function findByScreenOrderedByPosition(Screen $screen): array
@@ -183,29 +252,4 @@ class PictureRepository extends ServiceEntityRepository
         
         $entityManager->flush();
     }
-
-    //    /**
-    //     * @return Picture[] Returns an array of Picture objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('p.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?Picture
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
 }

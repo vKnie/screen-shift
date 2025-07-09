@@ -5,61 +5,30 @@
 {% block body %}
     <h1>{{ controller_name }}</h1>
     <hr>
-    
-    {% for type, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" role="alert">
-                {% if type == 'success' %}
-                    <i class="bi bi-check-circle me-2"></i>
-                {% elseif type == 'error' %}
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                {% elseif type == 'warning' %}
-                    <i class="bi bi-exclamation-circle me-2"></i>
-                {% endif %}
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        {% endfor %}
-    {% endfor %}
-
-    {% if app.session.get('pdf_download_ready') %}
-        <div class="alert alert-success">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-check-circle me-2"></i>
-                    <strong>Conversion terminée !</strong> 
-                    {{ app.session.get('pdf_page_count') }} images créées
-                </div>
-                <div>
-                    <a href="{{ path('app_convert_pdf_download') }}" class="btn btn-success btn-sm me-2">
-                        <i class="bi bi-download me-1"></i>Télécharger ZIP
-                    </a>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSession()">
-                        <i class="bi bi-x"></i> Annuler
-                    </button>
-                </div>
-            </div>
-        </div>
-    {% endif %}
 
     <div class="row">
         <div class="col-lg-8">
-            <form action="{{ path('app_convert_pdf_upload') }}" method="post" enctype="multipart/form-data" id="pdf-form">
-                <div class="mb-3">
-                    <label for="pdf_file" class="form-label">
-                        <i class="bi bi-cloud-upload me-2"></i>Sélectionner un fichier PDF
-                    </label>
-                    <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
-                    <div class="form-text">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Limite: {{ max_size_mb }}MB | Max {{ max_pages }} pages | Format: PDF uniquement
-                    </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Convertir PDF en images</h5>
                 </div>
+                <div class="card-body">
+                    <form action="{{ path('app_convert_pdf_upload') }}" method="post" enctype="multipart/form-data" id="pdf-form">
+                        <div class="mb-3">
+                            <label for="pdf_file" class="form-label">Sélectionner un fichier PDF</label>
+                            <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Limite: {{ max_size_mb }}MB | Max {{ max_pages }} pages | Format: PDF uniquement
+                            </div>
+                        </div>
 
-                <button type="submit" class="btn btn-primary" id="submit-btn">
-                    <i class="bi bi-gear me-2"></i>Convertir en PNG
-                </button>
-            </form>
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
+                            <i class="bi bi-gear me-2"></i>Convertir et télécharger
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <div class="col-lg-4">
@@ -71,7 +40,7 @@
                     <ul class="list-unstyled mb-0">
                         <li><i class="bi bi-check text-success me-2"></i><strong>Résolution:</strong> 120 DPI</li>
                         <li><i class="bi bi-check text-success me-2"></i><strong>Format:</strong> PNG optimisé</li>
-                        <li><i class="bi bi-check text-success me-2"></i><strong>Livraison:</strong> ZIP</li>
+                        <li><i class="bi bi-check text-success me-2"></i><strong>Livraison:</strong> ZIP automatique</li>
                         <li><i class="bi bi-shield text-warning me-2"></i><strong>Limite:</strong> {{ max_pages }} pages max</li>
                     </ul>
                     <hr>
@@ -107,6 +76,7 @@
             const fileInput = document.getElementById('pdf_file');
             const submitBtn = document.getElementById('submit-btn');
             const progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
+            let currentFileName = '';
 
             fileInput.addEventListener('change', function() {
                 const file = this.files[0];
@@ -114,48 +84,89 @@
 
                 // Validation côté client
                 if (file.size > {{ max_size_mb }} * 1024 * 1024) {
-                    alert('Fichier trop volumineux (max {{ max_size_mb }}MB)');
+                    showNotification('Fichier trop volumineux (max {{ max_size_mb }}MB)', 'danger');
                     this.value = '';
                     return;
                 }
 
                 if (!file.name.toLowerCase().endsWith('.pdf')) {
-                    alert('Seuls les fichiers PDF sont acceptés');
+                    showNotification('Seuls les fichiers PDF sont acceptés', 'danger');
                     this.value = '';
                     return;
                 }
 
+                currentFileName = file.name;
                 const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-                console.log(`PDF sélectionné: ${file.name} (${sizeMB}MB)`);
+                showNotification(`PDF sélectionné: ${file.name} (${sizeMB}MB)`, 'success');
             });
 
             form.addEventListener('submit', function(e) {
+                e.preventDefault(); // IMPORTANT: empêcher la soumission normale
+                
                 const file = fileInput.files[0];
                 if (!file) {
-                    e.preventDefault();
-                    alert('Veuillez sélectionner un fichier PDF');
+                    showNotification('Veuillez sélectionner un fichier PDF', 'warning');
                     return;
                 }
 
                 // Afficher le modal de progression
                 progressModal.show();
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass me-2"></i>Conversion...';
-            });
+                submitBtn.innerHTML = '<i class="bi bi-hourglass me-2"></i>Conversion en cours...';
 
-            // Auto-dismiss des alertes
-            setTimeout(function() {
-                document.querySelectorAll('.alert').forEach(function(alert) {
-                    if (alert.classList.contains('show')) {
-                        bootstrap.Alert.getOrCreateInstance(alert).close();
+                // Utiliser XMLHttpRequest pour gérer le téléchargement
+                const xhr = new XMLHttpRequest();
+                const formData = new FormData();
+                formData.append('pdf_file', file);
+
+                xhr.open('POST', '{{ path('app_convert_pdf_upload') }}', true);
+                xhr.responseType = 'blob';
+
+                xhr.onload = function() {
+                    // Fermer le modal
+                    progressModal.hide();
+                    
+                    // Restaurer le bouton
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-gear me-2"></i>Convertir et télécharger';
+
+                    if (xhr.status === 200) {
+                        // Téléchargement du fichier
+                        const blob = xhr.response;
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = currentFileName.replace('.pdf', '_images_' + new Date().toISOString().slice(0,19).replace(/:/g, '-') + '.zip');
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        // NOTIFICATION DE SUCCÈS - APRÈS le téléchargement
+                        setTimeout(function() {
+                            showNotification(`✅ PDF "${currentFileName}" converti et téléchargé avec succès !`, 'success');
+                            form.reset(); // Reset après succès
+                        }, 500); // Petit délai pour s'assurer que le téléchargement a commencé
+
+                    } else {
+                        showNotification('❌ Erreur lors de la conversion du PDF', 'danger');
                     }
-                });
-            }, 8000);
-        });
+                };
 
-        function clearSession() {
-            fetch('{{ path('app_convert_pdf_clear') }}', { method: 'POST' })
-                .then(() => location.reload());
-        }
+                xhr.onerror = function() {
+                    // Fermer le modal
+                    progressModal.hide();
+                    
+                    // Restaurer le bouton
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="bi bi-gear me-2"></i>Convertir et télécharger';
+                    
+                    showNotification('❌ Erreur de connexion lors de la conversion', 'danger');
+                };
+
+                // Envoyer la requête
+                xhr.send(formData);
+            });
+        });
     </script>
 {% endblock %}

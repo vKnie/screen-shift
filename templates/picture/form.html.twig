@@ -16,6 +16,13 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     {% endfor %}
+
+    {% for message in app.flashes('info') %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
    
     {{ form_start(form) }}
         <div class="mb-3">
@@ -43,8 +50,33 @@
         
         <div class="mb-3">
             {{ form_label(form.imageFile, null, {'label_attr': {'class': 'form-label'}}) }}
-            {{ form_widget(form.imageFile, {'attr': {'class': 'form-control custom-image-upload', 'accept': 'image/*'}}) }}
+            {{ form_widget(form.imageFile, {'attr': {'class': 'form-control custom-file-upload', 'accept': 'image/*,application/pdf'}}) }}
             {{ form_errors(form.imageFile) }}
+            
+            <div class="mt-2">
+                <small class="text-muted">
+                    <strong>Images :</strong> PNG, JPEG, GIF, SVG<br>
+                    <strong>PDF :</strong> Max {{ pdf_max_size_mb }}MB, {{ pdf_max_pages }} pages max (seule la première page sera convertie en PNG)
+                </small>
+            </div>
+            
+            <!-- Chargement PDF -->
+            <div id="pdf-loading-section" class="mt-3" style="display: none;">
+                <div class="card border-primary">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-file-earmark-pdf text-primary mb-3" style="font-size: 3rem;"></i>
+                        <h6 class="card-title mb-3">Conversion du PDF</h6>
+                        <div class="progress mb-3" style="height: 12px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                                 role="progressbar" 
+                                 id="pdf-progress" 
+                                 style="width: 0%">
+                            </div>
+                        </div>
+                        <small class="text-muted" id="pdf-progress-text">Initialisation...</small>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="preview-color-section" style="display: none;">
@@ -54,11 +86,11 @@
                         <h6 class="card-title mb-0">Prévisualisation</h6>
                     </div>
                     <div class="card-body text-center">
-                        <div id="preview-background" class="p-4 rounded border" style="background-color: #f8f9fa; transition: background-color 0.3s ease;">
-                            <img id="preview-img" src="" alt="Prévisualisation" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                        <div id="preview-background" class="p-4 rounded border d-flex align-items-center justify-content-center" style="background-color: #ffffff; transition: background-color 0.3s ease; min-height: 250px;">
+                            <img id="preview-img" src="" alt="Prévisualisation" class="img-fluid rounded shadow-sm" style="max-height: 200px; display: none;">
                         </div>
-                        <div id="image-analysis" class="mt-2">
-                            <small class="text-muted">Analyse des couleurs...</small>
+                        <div id="file-analysis" class="mt-2">
+                            <small class="text-muted">Sélectionnez un fichier...</small>
                         </div>
                     </div>
                 </div>
@@ -91,10 +123,14 @@
             </div>
         </div>
         
-        <div class="mb-3">
-            {{ form_label(form.screens, null, {'label_attr': {'class': 'form-label'}}) }}
-            <div class="screen-selection-container p-3 border rounded bg-light">
-                {{ form_widget(form.screens) }}
+        <div class="mb-4">
+            {{ form_label(form.screens, null, {'label_attr': {'class': 'form-label fw-bold'}}) }}
+            <div class="card">
+                <div class="card-body p-3">
+                    <div class="row g-3" id="screens-container">
+                        {{ form_widget(form.screens) }}
+                    </div>
+                </div>
             </div>
             {{ form_errors(form.screens) }}
         </div>
@@ -107,61 +143,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Style des checkboxes pour les écrans
-            const screenCheckboxes = document.querySelectorAll('.screen-checkboxes input[type="checkbox"]');
-            screenCheckboxes.forEach(checkbox => {
-                const label = checkbox.closest('label');
-                if (label) {
-                    label.classList.add('form-check', 'mb-2', 'p-2', 'border', 'rounded', 'bg-white');
-                    label.style.cursor = 'pointer';
-                    
-                    checkbox.classList.add('form-check-input', 'me-2');
-                    
-                    const group = checkbox.getAttribute('data-group');
-                    if (group) {
-                        const groupBadge = document.createElement('span');
-                        groupBadge.className = 'badge bg-info ms-2';
-                        groupBadge.textContent = group;
-                        label.appendChild(groupBadge);
-                    }
-                    
-                    // Effet hover
-                    label.addEventListener('mouseenter', function() {
-                        this.style.backgroundColor = '#e3f2fd';
-                        this.style.borderColor = '#2196f3';
-                    });
-                    
-                    label.addEventListener('mouseleave', function() {
-                        if (!checkbox.checked) {
-                            this.style.backgroundColor = '#ffffff';
-                            this.style.borderColor = '#dee2e6';
-                        }
-                    });
-                    
-                    // Effet selection
-                    checkbox.addEventListener('change', function() {
-                        if (this.checked) {
-                            label.style.backgroundColor = '#d1ecf1';
-                            label.style.borderColor = '#bee5eb';
-                            label.classList.add('border-info');
-                        } else {
-                            label.style.backgroundColor = '#ffffff';
-                            label.style.borderColor = '#dee2e6';
-                            label.classList.remove('border-info');
-                        }
-                    });
-                    
-                    // État initial
-                    if (checkbox.checked) {
-                        label.style.backgroundColor = '#d1ecf1';
-                        label.style.borderColor = '#bee5eb';
-                        label.classList.add('border-info');
-                    }
-                }
-            });
-            
-            // Code pour les couleurs...
-            const imageUpload = document.querySelector('.custom-image-upload');
+            // Éléments DOM
+            const fileUpload = document.querySelector('.custom-file-upload');
             const colorPicker = document.querySelector('.custom-color-picker');
             const suggestButton = document.getElementById('suggest-color');
             const colorSuggestions = document.getElementById('color-suggestions');
@@ -170,42 +153,253 @@
             const previewImg = document.getElementById('preview-img');
             const previewBackground = document.getElementById('preview-background');
             const colorValue = document.getElementById('color-value');
-            
-            if (!imageUpload || !colorPicker) {
-                console.error('Éléments requis non trouvés');
-                return;
-            }
+            const fileAnalysis = document.getElementById('file-analysis');
+            const pdfLoadingSection = document.getElementById('pdf-loading-section');
             
             let currentImageColors = [];
 
-            function updateColorDisplay(color) {
-                if (previewBackground) {
-                    previewBackground.style.backgroundColor = color;
+            // Initialisation
+            function init() {
+                if (!fileUpload || !colorPicker) {
+                    console.error('Éléments requis non trouvés');
+                    return;
                 }
-                if (colorValue) {
-                    colorValue.textContent = color.toUpperCase();
+                
+                updateColorDisplay('#ffffff');
+                setupScreenCards();
+                setupEventListeners();
+                
+                {% if edit is defined and edit and form.vars.data.imageName %}
+                    loadExistingImage();
+                {% endif %}
+            }
+
+            // Configuration des cartes d'écrans
+            function setupScreenCards() {
+                document.querySelectorAll('#screens-container input[type="checkbox"]').forEach(checkbox => {
+                    const label = checkbox.closest('label');
+                    if (!label) return;
+                    
+                    const screenCard = document.createElement('div');
+                    screenCard.className = 'col-md-6 col-lg-4';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card h-100 screen-card';
+                    card.style.cssText = 'cursor: pointer; transition: all 0.3s ease; border: 2px solid #e9ecef;';
+                    
+                    const screenName = label.textContent.split('(')[0].trim();
+                    const group = checkbox.getAttribute('data-group');
+                    
+                    card.innerHTML = `
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="form-check me-3">
+                                <input class="form-check-input" type="checkbox" ${checkbox.checked ? 'checked' : ''} 
+                                       id="${checkbox.id}" name="${checkbox.name}" value="${checkbox.value}"
+                                       data-group="${group}" data-role="${checkbox.getAttribute('data-role')}">
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1 fw-bold">${screenName}</h6>
+                                <span class="badge bg-primary">${group}</span>
+                            </div>
+                            <div class="text-end">
+                                <i class="bi bi-display text-muted" style="font-size: 1.5rem;"></i>
+                            </div>
+                        </div>
+                    `;
+                    
+                    screenCard.appendChild(card);
+                    label.parentNode.replaceChild(screenCard, label);
+                    
+                    setupCardEvents(card);
+                });
+            }
+
+            function setupCardEvents(card) {
+                const checkbox = card.querySelector('input[type="checkbox"]');
+                
+                card.addEventListener('click', function(e) {
+                    if (e.target.type !== 'checkbox') {
+                        checkbox.checked = !checkbox.checked;
+                        updateCardStyle(card, checkbox.checked);
+                    }
+                });
+                
+                checkbox.addEventListener('change', function() {
+                    updateCardStyle(card, this.checked);
+                });
+                
+                card.addEventListener('mouseenter', function() {
+                    if (!checkbox.checked) {
+                        this.style.borderColor = '#0d6efd';
+                        this.style.boxShadow = '0 4px 8px rgba(13, 110, 253, 0.15)';
+                    }
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    if (!checkbox.checked) {
+                        this.style.borderColor = '#e9ecef';
+                        this.style.boxShadow = 'none';
+                    }
+                });
+                
+                updateCardStyle(card, checkbox.checked);
+            }
+
+            function updateCardStyle(card, isChecked) {
+                const icon = card.querySelector('.bi-display, .bi-display-fill');
+                if (isChecked) {
+                    card.style.borderColor = '#198754';
+                    card.style.backgroundColor = '#f8fff9';
+                    card.style.boxShadow = '0 4px 12px rgba(25, 135, 84, 0.2)';
+                    icon.className = 'bi bi-display-fill text-success';
+                } else {
+                    card.style.borderColor = '#e9ecef';
+                    card.style.backgroundColor = '#ffffff';
+                    card.style.boxShadow = 'none';
+                    icon.className = 'bi bi-display text-muted';
                 }
             }
 
-            colorPicker.addEventListener('input', function(e) {
-                updateColorDisplay(e.target.value);
-            });
+            // Configuration des événements
+            function setupEventListeners() {
+                colorPicker.addEventListener('input', function(e) {
+                    updateColorDisplay(e.target.value);
+                });
 
-            imageUpload.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file && file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        previewImg.src = e.target.result;
-                        previewSection.style.display = 'block';
-                        analyzeImageColors(e.target.result);
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    previewSection.style.display = 'none';
-                    hideSuggestions();
+                fileUpload.addEventListener('change', handleFileUpload);
+
+                if (suggestButton) {
+                    suggestButton.addEventListener('click', function() {
+                        if (currentImageColors.length > 0) {
+                            const shuffled = [...currentImageColors].sort(() => 0.5 - Math.random());
+                            showColorSuggestions(shuffled);
+                        }
+                    });
                 }
-            });
+            }
+
+            // Gestion de l'upload de fichiers
+            function handleFileUpload(e) {
+                const file = e.target.files[0];
+                
+                resetPreview();
+                
+                if (!file) return;
+                
+                if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+                    handlePdfFile(file);
+                } else if (file.type.startsWith('image/')) {
+                    handleImageFile(file);
+                } else {
+                    fileAnalysis.innerHTML = '<small class="text-danger">Format de fichier non supporté</small>';
+                }
+            }
+
+            function resetPreview() {
+                if (previewSection) previewSection.style.display = 'none';
+                if (pdfLoadingSection) pdfLoadingSection.style.display = 'none';
+                if (colorSuggestionsContainer) colorSuggestionsContainer.style.display = 'none';
+            }
+
+            function handleImageFile(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    showImagePreview(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function handlePdfFile(file) {
+                if (!pdfLoadingSection) return;
+                
+                pdfLoadingSection.style.display = 'block';
+                
+                const progressBar = document.getElementById('pdf-progress');
+                const progressText = document.getElementById('pdf-progress-text');
+                
+                if (progressBar) {
+                    progressBar.style.width = '10%';
+                    progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-primary';
+                }
+                if (progressText) progressText.textContent = 'Préparation...';
+                
+                convertPdfToPreview(file);
+            }
+
+            function convertPdfToPreview(file) {
+                const formData = new FormData();
+                formData.append('pdf_file', file);
+                
+                const progressBar = document.getElementById('pdf-progress');
+                const progressText = document.getElementById('pdf-progress-text');
+                
+                // Animation de progression
+                if (progressBar && progressText) {
+                    progressBar.style.width = '30%';
+                    progressText.textContent = 'Envoi du fichier...';
+                    
+                    setTimeout(() => {
+                        progressBar.style.width = '60%';
+                        progressText.textContent = 'Conversion en cours...';
+                    }, 500);
+                }
+                
+                fetch('{{ path('convert_pdf_preview') }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (progressBar && progressText) {
+                            progressBar.style.width = '100%';
+                            progressBar.className = 'progress-bar bg-success';
+                            progressText.textContent = 'Conversion terminée !';
+                        }
+                        
+                        setTimeout(() => {
+                            if (pdfLoadingSection) pdfLoadingSection.style.display = 'none';
+                            showImagePreview(data.image);
+                        }, 1200);
+                    } else {
+                        handleConversionError(progressBar, progressText, data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Network error:', error);
+                    handleConversionError(progressBar, progressText, 'Erreur de connexion');
+                });
+            }
+
+            function handleConversionError(progressBar, progressText, errorMessage) {
+                if (progressBar && progressText) {
+                    progressBar.style.width = '100%';
+                    progressBar.className = 'progress-bar bg-danger';
+                    progressText.textContent = 'Erreur: ' + errorMessage;
+                }
+                
+                setTimeout(() => {
+                    if (pdfLoadingSection) pdfLoadingSection.style.display = 'none';
+                }, 3000);
+            }
+
+            // Prévisualisation d'image
+            function showImagePreview(imageSrc) {
+                if (!previewImg || !previewSection) return;
+                
+                previewImg.src = imageSrc;
+                previewImg.style.display = 'block';
+                previewSection.style.display = 'block';
+                fileAnalysis.innerHTML = '<small class="text-success"><i class="bi bi-check-circle me-1"></i>Image chargée</small>';
+                
+                analyzeImageColors(imageSrc);
+            }
+
+            // Gestion des couleurs
+            function updateColorDisplay(color) {
+                if (previewBackground) previewBackground.style.backgroundColor = color;
+                if (colorValue) colorValue.textContent = color.toUpperCase();
+            }
 
             function analyzeImageColors(imageSrc) {
                 const img = new Image();
@@ -261,9 +455,7 @@
             function generateSmartSuggestions(dominantColors) {
                 const suggestions = [];
                 
-                if (dominantColors.length === 0) {
-                    return suggestions;
-                }
+                if (dominantColors.length === 0) return suggestions;
                 
                 dominantColors.forEach((color, index) => {
                     const hsl = rgbToHsl(color.r, color.g, color.b);
@@ -304,9 +496,7 @@
                     const brightness = (suggestion.r + suggestion.g + suggestion.b) / 3;
                     const saturation = Math.max(suggestion.r, suggestion.g, suggestion.b) - Math.min(suggestion.r, suggestion.g, suggestion.b);
                     
-                    if (brightness > 240 || brightness < 20 || saturation < 20) {
-                        return false;
-                    }
+                    if (brightness > 240 || brightness < 20 || saturation < 20) return false;
                     
                     return index === self.findIndex(s => 
                         Math.abs(s.r - suggestion.r) < 20 && 
@@ -324,9 +514,11 @@
             }
 
             function showColorSuggestions(suggestions) {
+                if (!colorSuggestions) return;
+                
                 colorSuggestions.innerHTML = '';
                 
-                suggestions.forEach((color, index) => {
+                suggestions.forEach(color => {
                     const col = document.createElement('div');
                     col.className = 'col-3';
                     
@@ -353,8 +545,9 @@
                         this.style.borderColor = '#0d6efd';
                         this.style.transform = 'scale(1.05)';
                         
-                        document.getElementById('image-analysis').innerHTML = 
-                            `<small class="text-success">✓ ${color.name} appliquée</small>`;
+                        if (fileAnalysis) {
+                            fileAnalysis.innerHTML = `<small class="text-success">✓ ${color.name} appliquée</small>`;
+                        }
                     });
                     
                     colorBox.addEventListener('mouseenter', function() {
@@ -375,17 +568,15 @@
                     colorSuggestions.appendChild(col);
                 });
                 
-                colorSuggestionsContainer.style.display = 'block';
-                document.getElementById('image-analysis').innerHTML = 
-                    `<small class="text-success">✓ ${suggestions.length} couleurs suggérées</small>`;
-            }
-
-            function hideSuggestions() {
                 if (colorSuggestionsContainer) {
-                    colorSuggestionsContainer.style.display = 'none';
+                    colorSuggestionsContainer.style.display = 'block';
+                }
+                if (fileAnalysis) {
+                    fileAnalysis.innerHTML = `<small class="text-success">✓ ${suggestions.length} couleurs suggérées</small>`;
                 }
             }
 
+            // Utilitaires couleurs
             function rgbToHex(r, g, b) {
                 r = Math.round(Math.max(0, Math.min(255, r)));
                 g = Math.round(Math.max(0, Math.min(255, g)));
@@ -443,31 +634,21 @@
                 };
             }
 
-            if (suggestButton) {
-                suggestButton.addEventListener('click', function() {
-                    if (currentImageColors.length > 0) {
-                        const shuffled = [...currentImageColors].sort(() => 0.5 - Math.random());
-                        showColorSuggestions(shuffled);
-                    }
-                });
-            }
-            
-            updateColorDisplay(colorPicker.value);
-            
-            {% if edit is defined and edit %}
-                {% if form.vars.data.imageName %}
+            // Chargement image existante (mode édition)
+            function loadExistingImage() {
+                {% if edit is defined and edit and form.vars.data.imageName %}
                     const existingImagePath = "{{ asset('uploads/pictures/' ~ form.vars.data.imageName) }}";
-                    previewImg.src = existingImagePath;
-                    previewSection.style.display = 'block';
-                    
-                    analyzeImageColors(existingImagePath);
+                    showImagePreview(existingImagePath);
                     
                     {% if form.vars.data.backgroundColor %}
                         const currentBgColor = "{{ form.vars.data.backgroundColor }}";
                         updateColorDisplay(currentBgColor);
                     {% endif %}
                 {% endif %}
-            {% endif %}
+            }
+
+            // Démarrage
+            init();
         });
     </script>
 {% endblock %}

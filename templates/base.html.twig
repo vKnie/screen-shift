@@ -28,9 +28,6 @@
     
     <title>Screen Shift - {% block page_title %}{{ section_name }}{% endblock %}</title>
     
-    {# ✅ SUPPRIMÉ : Tous les CDN remplacés par AssetMapper #}
-    {# Les CSS et JS sont maintenant gérés dans assets/app.js #}
-    
     {% block stylesheets %}{% endblock %}
     {% block javascripts %}
         {% block importmap %}{{ importmap('app') }}{% endblock %}
@@ -105,8 +102,105 @@
     {% endif %}
    
     <div class="{% if app.request.attributes.get('_route') == 'screen_show' or not is_granted('ROLE_ACCESS') %}w-100 p-4{% else %}flex-grow-1 p-4{% endif %}">
+        {# Zone des notifications flash globales #}
+        <div id="flash-messages-container">
+            {% for message in app.flashes('success') %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+           
+            {% for message in app.flashes('error') %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+           
+            {% for message in app.flashes('info') %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="bi bi-info-circle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+           
+            {% for message in app.flashes('warning') %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+
         {% block body %}{% endblock %}
     </div>
 </div>
+
+{# JavaScript global pour toutes les pages #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-fermeture des notifications après 6 secondes
+    const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+    alerts.forEach(function(alert) {
+        setTimeout(function() {
+            if (alert && alert.parentNode) {
+                const bootstrapAlert = new bootstrap.Alert(alert);
+                bootstrapAlert.close();
+            }
+        }, 6000);
+    });
+    
+    // Animation d'entrée pour les nouvelles notifications
+    alerts.forEach(function(alert, index) {
+        alert.style.opacity = '0';
+        alert.style.transform = 'translateY(-20px)';
+        setTimeout(function() {
+            alert.style.transition = 'all 0.3s ease';
+            alert.style.opacity = '1';
+            alert.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+// Fonction globale pour les confirmations de suppression
+function confirmDelete(id, itemName, itemType = 'élément') {
+    return confirm(`Êtes-vous sûr de vouloir supprimer ${itemType} "${itemName}" ?\n\nCette action est irréversible.`);
+}
+
+// Fonction pour afficher des notifications dynamiques
+function showNotification(message, type = 'success') {
+    const container = document.getElementById('flash-messages-container');
+    if (!container) return;
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.setAttribute('role', 'alert');
+    
+    const icon = type === 'success' ? 'check-circle' : 
+                 type === 'danger' ? 'exclamation-triangle' : 
+                 type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+    
+    alertDiv.innerHTML = `
+        <i class="bi bi-${icon} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    container.appendChild(alertDiv);
+    
+    // Auto-fermeture après 5 secondes
+    setTimeout(function() {
+        if (alertDiv && alertDiv.parentNode) {
+            const bootstrapAlert = new bootstrap.Alert(alertDiv);
+            bootstrapAlert.close();
+        }
+    }, 5000);
+}
+</script>
 </body>
 </html>
